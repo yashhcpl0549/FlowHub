@@ -50,6 +50,8 @@ class User(BaseModel):
     email: str
     name: str
     picture: str
+    role: str = "user"  # user or admin
+    agent_access: List[str] = []  # List of agent_ids user can access
     created_at: datetime
 
 class UserSession(BaseModel):
