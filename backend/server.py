@@ -238,6 +238,128 @@ async def logout(response: Response, session_token: Optional[str] = Cookie(None)
 
 # ============ AGENT ROUTES ============
 
+# Admin middleware
+async def require_admin(session_token: Optional[str] = Cookie(None)) -> User:
+    """Verify user is admin"""
+    user = await get_current_user(session_token=session_token)
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+# Admin: Get all users
+@api_router.get("/admin/users")
+async def get_all_users(session_token: Optional[str] = Cookie(None)):
+    """Get all users (admin only)"""
+    await require_admin(session_token=session_token)
+    
+    users = await db.users.find({}, {"_id": 0}).to_list(1000)
+    
+    # Convert ISO strings to datetime
+    for user in users:
+        if isinstance(user.get('created_at'), str):
+            user['created_at'] = datetime.fromisoformat(user['created_at'])
+    
+    return users
+
+# Admin: Update user agent access
+@api_router.put("/admin/users/{user_id}/access")
+async def update_user_access(
+    user_id: str,
+    agent_ids: List[str],
+    session_token: Optional[str] = Cookie(None)
+):
+    """Update user's agent access (admin only)"""
+    await require_admin(session_token=session_token)
+    
+    result = await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"agent_access": agent_ids}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User access updated", "agent_ids": agent_ids}
+
+# Admin: Create new agent
+@api_router.post("/admin/agents")
+async def create_agent(
+    name: str,
+    description: str,
+    required_files: str,  # Comma-separated
+    validation_file: Optional[UploadFile] = File(None),
+    main_file: Optional[UploadFile] = File(None),
+    session_token: Optional[str] = Cookie(None)
+):
+    """Create new agent (admin only)"""
+    user = await require_admin(session_token=session_token)
+    
+    agent_id = f"agent_{uuid.uuid4().hex[:12]}"
+    
+    # Save uploaded scripts
+    validation_path = None
+    main_path = None
+    
+    if validation_file:
+        validation_path = ROOT_DIR / "scripts" / agent_id / "validate.py"
+        validation_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(validation_path, "wb") as f:
+            shutil.copyfileobj(validation_file.file, f)
+    
+    if main_file:
+        main_path = ROOT_DIR / "scripts" / agent_id / "main.py"
+        main_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(main_path, "wb") as f:
+            shutil.copyfileobj(main_file.file, f)
+    
+    # Parse required files
+    required_files_list = [f.strip() for f in required_files.split(",")]
+    
+    # Create agent
+    agent_doc = {
+        "agent_id": agent_id,
+        "name": name,
+        "description": description,
+        "required_files": required_files_list,
+        "validation_script": str(validation_path) if validation_path else None,
+        "main_script": str(main_path) if main_path else None,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user.user_id
+    }
+    
+    await db.agents.insert_one(agent_doc)
+    
+    return {"message": "Agent created successfully", "agent_id": agent_id}
+
+# Admin: Get all agents (including inactive)
+@api_router.get("/admin/agents")
+async def get_all_agents_admin(session_token: Optional[str] = Cookie(None)):
+    """Get all agents including inactive (admin only)"""
+    await require_admin(session_token=session_token)
+    
+    agents = await db.agents.find({}, {"_id": 0}).to_list(100)
+    
+    # Convert ISO strings to datetime
+    for agent in agents:
+        if isinstance(agent['created_at'], str):
+            agent['created_at'] = datetime.fromisoformat(agent['created_at'])
+    
+    return agents
+
+# Admin: Delete agent
+@api_router.delete("/admin/agents/{agent_id}")
+async def delete_agent(agent_id: str, session_token: Optional[str] = Cookie(None)):
+    """Delete agent (admin only)"""
+    await require_admin(session_token=session_token)
+    
+    result = await db.agents.delete_one({"agent_id": agent_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    return {"message": "Agent deleted successfully"}
+
 @api_router.get("/agents", response_model=List[Agent])
 async def get_agents(session_token: Optional[str] = Cookie(None)):
     """Get all agents that user has access to"""
