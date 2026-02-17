@@ -234,14 +234,15 @@ print('Admin User ID: ' + userId);
 
     def test_create_new_agent(self):
         """Test admin create new agent"""
-        # Create test files
-        validation_content = "# Validation script\nprint('Validation passed')"
-        main_content = "# Main processing script\nprint('Processing completed')"
+        # Create test files as in-memory file objects
+        from io import BytesIO
+        validation_content = b"# Validation script\nprint('Validation passed')"
+        main_content = b"# Main processing script\nprint('Processing completed')"
         
-        # Prepare form data with files
+        # Use the correct format - separate data and files
         files = {
-            'validation_file': ('validate.py', validation_content, 'text/plain'),
-            'main_file': ('main.py', main_content, 'text/plain')
+            'validation_file': ('validate.py', BytesIO(validation_content), 'text/plain'),
+            'main_file': ('main.py', BytesIO(main_content), 'text/plain')
         }
         
         data = {
@@ -250,14 +251,39 @@ print('Admin User ID: ' + userId);
             'required_files': 'Input Data, Config File'
         }
         
-        success, response = self.run_test(
-            "Admin Create New Agent",
-            "POST",
-            "admin/agents",
-            200,
-            files=files,
-            form_data=data
-        )
+        # Test without files first to see if it works
+        url = f"{self.base_url}/api/admin/agents"
+        cookies = {'session_token': self.admin_session_token}
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Admin Create New Agent...")
+        print(f"   URL: {url}")
+        
+        try:
+            response = requests.post(url, files=files, data=data, cookies=cookies)
+            
+            success = response.status_code == 200
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                if response.content:
+                    try:
+                        response_data = response.json()
+                        print(f"   Response: {json.dumps(response_data, indent=2)[:300]}...")
+                        if 'agent_id' in response_data:
+                            self.created_agent_id = response_data['agent_id']
+                            print(f"   Created Agent ID: {self.created_agent_id}")
+                        return True, response_data
+                    except:
+                        print(f"   Response: {response.text[:200]}")
+                        return True, {}
+            else:
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                print(f"   Response: {response.text[:300]}")
+                return False, {}
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            return False, {}
         
         if success and 'agent_id' in response:
             self.created_agent_id = response['agent_id']
