@@ -68,8 +68,11 @@ class Agent(BaseModel):
     name: str
     description: str
     required_files: List[str]
+    validation_script: Optional[str] = None  # Path to validation script
+    main_script: Optional[str] = None  # Path to main processing script
     status: str = "active"
     created_at: datetime
+    created_by: Optional[str] = None  # user_id of creator
 
 class Job(BaseModel):
     job_id: str
