@@ -18,8 +18,10 @@ class AutomationHubAPITester:
         """Run a single API test"""
         url = f"{self.base_url}/api/{endpoint}"
         headers = {}
+        cookies = {}
+        
         if self.session_token:
-            headers['Authorization'] = f'Bearer {self.session_token}'
+            cookies['session_token'] = self.session_token
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -27,13 +29,13 @@ class AutomationHubAPITester:
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers)
+                response = requests.get(url, headers=headers, cookies=cookies)
             elif method == 'POST':
                 if files:
-                    response = requests.post(url, files=files, headers=headers)
+                    response = requests.post(url, files=files, headers=headers, cookies=cookies)
                 else:
                     headers['Content-Type'] = 'application/json'
-                    response = requests.post(url, json=data, headers=headers)
+                    response = requests.post(url, json=data, headers=headers, cookies=cookies)
 
             success = response.status_code == expected_status
             if success:
