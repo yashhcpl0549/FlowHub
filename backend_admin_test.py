@@ -15,7 +15,7 @@ class FlowHubAdminAPITester:
         self.created_agent_id = None
         self.regular_user_id = None
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, files=None, session_token=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, files=None, session_token=None, form_data=None):
         """Run a single API test"""
         url = f"{self.base_url}/api/{endpoint}"
         headers = {}
@@ -35,7 +35,10 @@ class FlowHubAdminAPITester:
             if method == 'GET':
                 response = requests.get(url, headers=headers, cookies=cookies)
             elif method == 'POST':
-                if files:
+                if files and form_data:
+                    # Multi-part form with both files and form data
+                    response = requests.post(url, files=files, data=form_data, cookies=cookies)
+                elif files:
                     response = requests.post(url, files=files, cookies=cookies)
                 elif data is not None:
                     headers['Content-Type'] = 'application/json'
