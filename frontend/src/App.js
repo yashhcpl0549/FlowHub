@@ -7,6 +7,9 @@ import Dashboard from './pages/Dashboard';
 import AgentDetail from './pages/AgentDetail';
 import JobsList from './pages/JobsList';
 import JobDetail from './pages/JobDetail';
+import AdminDashboard from './pages/AdminDashboard';
+import ManageUsers from './pages/ManageUsers';
+import ManageAgents from './pages/ManageAgents';
 
 function AppRouter() {
   const location = useLocation();
@@ -23,6 +26,9 @@ function AppRouter() {
       <Route path="/agent/:agentId" element={<AgentDetail />} />
       <Route path="/jobs" element={<JobsList />} />
       <Route path="/jobs/:jobId" element={<JobDetail />} />
+      <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/admin/users" element={<ManageUsers />} />
+      <Route path="/admin/agents" element={<ManageAgents />} />
     </Routes>
   );
 }
