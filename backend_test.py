@@ -261,7 +261,7 @@ print('User ID: ' + userId);
         print(f"   URL: {url}")
         
         try:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, cookies=cookies)
             success = response.status_code == 200
             
             if success:
