@@ -1,0 +1,172 @@
+{
+  "identity": {
+    "name": "E1",
+    "archetype": "The Performance Pro",
+    "tone": "Precision, Authority, Control, Efficiency",
+    "principles": [
+      "Fusion over Imitation",
+      "Emotion First (Confidence)",
+      "Content is King (Data Clarity)",
+      "Zoom In (Detail Focus)",
+      "Negative Space (Breathing Room)",
+      "Contrast (Hierarchy)"
+    ]
+  },
+  "typography": {
+    "fonts": {
+      "heading": {
+        "family": "Work Sans, sans-serif",
+        "weights": [300, 400, 600, 700],
+        "usage": "Use for all page titles, section headers, and modal titles. Tracking tight (-0.02em) for sizes over 24px."
+      },
+      "body": {
+        "family": "IBM Plex Sans, sans-serif",
+        "weights": [400, 500],
+        "usage": "Use for all standard text, labels, and descriptions. Excellent legibility for UI."
+      },
+      "mono": {
+        "family": "JetBrains Mono, monospace",
+        "weights": [400],
+        "usage": "Use for logs, code snippets, API keys, IDs, and tabular data values."
+      }
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-semibold tracking-tight",
+      "h2": "text-3xl font-medium tracking-tight",
+      "h3": "text-2xl font-medium",
+      "h4": "text-xl font-medium",
+      "body_lg": "text-lg leading-relaxed",
+      "body_base": "text-base leading-relaxed text-slate-600 dark:text-slate-300",
+      "body_sm": "text-sm leading-normal text-slate-500 dark:text-slate-400",
+      "caption": "text-xs font-medium uppercase tracking-wider text-slate-400"
+    }
+  },
+  "colors": {
+    "theme_mode": "light_default_with_dark_toggle",
+    "palette": {
+      "primary": {
+        "name": "Deep Obsidian",
+        "hex": "#0F172A",
+        "tailwind": "bg-slate-900 text-white hover:bg-slate-800"
+      },
+      "accent": {
+        "name": "Electric Blue",
+        "hex": "#2563EB",
+        "tailwind": "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400"
+      },
+      "background": {
+        "light": "#F8FAFC",
+        "dark": "#020617",
+        "paper_light": "#FFFFFF",
+        "paper_dark": "#0F172A"
+      },
+      "status": {
+        "success": "text-emerald-600 bg-emerald-50 border-emerald-200",
+        "warning": "text-amber-600 bg-amber-50 border-amber-200",
+        "error": "text-red-600 bg-red-50 border-red-200",
+        "info": "text-sky-600 bg-sky-50 border-sky-200"
+      }
+    },
+    "surface_strategies": {
+      "dashboard_card": "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-200",
+      "sidebar": "bg-slate-900 text-slate-300 border-r border-slate-800",
+      "header": "bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50"
+    }
+  },
+  "layout": {
+    "grid_system": "Use 'Bento Grid' principles. Avoid equal-width columns where possible. Use col-span-2 or col-span-3 for emphasis.",
+    "spacing": {
+      "page_padding": "p-6 md:p-10",
+      "card_padding": "p-6",
+      "section_gap": "gap-8"
+    },
+    "containers": {
+      "main": "max-w-7xl mx-auto w-full",
+      "narrow": "max-w-3xl mx-auto w-full"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "rounded-md bg-slate-900 text-white hover:bg-slate-800 hover:translate-y-[-1px] transition-all shadow-sm active:translate-y-[0px]",
+      "secondary": "rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors",
+      "ghost": "rounded-md hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors",
+      "danger": "rounded-md bg-red-600 text-white hover:bg-red-700 shadow-sm"
+    },
+    "inputs": {
+      "default": "rounded-md border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+      "label": "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 mb-2 block"
+    },
+    "cards": {
+      "wrapper": "rounded-lg border border-slate-200 bg-white text-slate-950 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50",
+      "header": "flex flex-col space-y-1.5 p-6",
+      "title": "text-2xl font-semibold leading-none tracking-tight",
+      "content": "p-6 pt-0"
+    },
+    "tables": {
+      "wrapper": "relative w-full overflow-auto rounded-md border border-slate-200",
+      "header_row": "border-b border-slate-200 bg-slate-50/50 hover:bg-slate-50/50",
+      "row": "border-b border-slate-200 transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-50",
+      "cell": "p-4 align-middle [&:has([role=checkbox])]:pr-0"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-white/70 border-b border-white/20",
+    "subtle_gradient": "bg-gradient-to-b from-white to-slate-50",
+    "noise_texture": "Use a subtle noise SVG overlay for 'empty states' or '404 pages' to add texture.",
+    "shadows": "shadow-sm for resting, shadow-md for hover. Avoid large drop shadows."
+  },
+  "motion": {
+    "duration": {
+      "fast": "150ms",
+      "normal": "250ms",
+      "slow": "500ms"
+    },
+    "easing": "ease-out-expo (cubic-bezier(0.19, 1, 0.22, 1))",
+    "micro_interactions": {
+      "hover_lift": "hover:-translate-y-1 transition-transform duration-200",
+      "click_press": "active:scale-95 transition-transform duration-100",
+      "page_enter": "animate-in fade-in slide-in-from-bottom-4 duration-500"
+    }
+  },
+  "images": {
+    "login_background": "https://images.unsplash.com/photo-1763929154494-a3d6eba05282?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHRlY2hub2xvZ3klMjB3aGl0ZSUyMGJhY2tncm91bmQlMjBtaW5pbWFsaXN0fGVufDB8fHx8MTc3MTM0NTcyNHww&ixlib=rb-4.1.0&q=85",
+    "hero_abstract": "https://images.unsplash.com/photo-1764437358284-4721473936f8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzF8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHRlY2hub2xvZ3klMjB3aGl0ZSUyMGJhY2tncm91bmQlMjBtaW5pbWFsaXN0fGVufDB8fHx8MTc3MTM0NTcyNHww&ixlib=rb-4.1.0&q=85",
+    "office_vibe": "https://images.unsplash.com/photo-1765366417046-f46361a7f26f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBvZmZpY2UlMjB3b3Jrc3BhY2UlMjBtaW5pbWFsaXN0JTIwYnJpZ2h0fGVufDB8fHx8MTc3MTM0NTcyNXww&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "DO NOT use gradients for backgrounds. Use solid colors or subtle patterns.",
+    "Use 'Work Sans' for all headings. Import it via Google Fonts.",
+    "Use 'IBM Plex Sans' for body text. Import it via Google Fonts.",
+    "Use 'JetBrains Mono' for all code blocks, logs, and IDs.",
+    "For the Sidebar: Use a dark sidebar (slate-900) even in light mode to create a strong anchor.",
+    "For Forms: Use the 'shadcn/ui' form components but style them with the 'Anti-AI' spacing (p-6 containers).",
+    "For Charts: Use 'recharts' with the custom color palette (Emerald, Blue, Amber).",
+    "For Status: Use blinking dots (animate-pulse) next to status text (Running, Processing).",
+    "Login Page: Split screen. Left side form, Right side abstract image (login_background).",
+    "Dashboard: Use a Bento Grid layout. Do not just list cards vertically.",
+    "Agent Detail: Two-column layout. Left: Inputs/Config. Right: Real-time Logs/Output.",
+    "Use 'lucide-react' for all icons. Stroke width 1.5px for a refined look."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy",
+    "Use glass-morphism effects with backdrop filters (12-24px blur)",
+    "You MUST NOT apply universal transition. Eg: transition: all. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file. This disrupts the human natural reading flow of text",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style",
+    "NEVER: use AI assistant Emoji characters like 🤖 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "Main agent relies on these image URLs. Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN",
+    "Prioritize using pre-existing components from src/components/ui when applicable",
+    "Create new components that match the style and conventions of existing components when needed",
+    "Examine existing components to understand the project's component patterns before creating new ones",
+    "Components MUST use named exports (export const ComponentName = ...)",
+    "Pages MUST use default exports (export default function PageName() {...})",
+    "Use 'sonner' for toasts",
+    "Sonner component are located in /app/frontend/src/components/ui/sonner.tsx"
+  ]
+}
