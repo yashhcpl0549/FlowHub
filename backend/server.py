@@ -700,7 +700,7 @@ async def seed_agents():
 
 @api_router.get("/")
 async def root():
-    return {"message": "KE30 Automation Hub API"}
+    return {"message": "FlowHub API"}
 
 # Include router
 app.include_router(api_router)
