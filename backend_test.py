@@ -187,12 +187,12 @@ print('User ID: ' + userId);
             print("❌ No job_id available for execution")
             return False
 
+        # Use query parameter instead of JSON body
         success, response = self.run_test(
             f"Execute Agent {agent_id}",
             "POST",
-            f"agents/{agent_id}/execute",
-            200,
-            data={"job_id": self.job_id}
+            f"agents/{agent_id}/execute?job_id={self.job_id}",
+            200
         )
         return success
 
