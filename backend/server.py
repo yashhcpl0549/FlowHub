@@ -240,10 +240,18 @@ async def logout(response: Response, session_token: Optional[str] = Cookie(None)
 
 @api_router.get("/agents", response_model=List[Agent])
 async def get_agents(session_token: Optional[str] = Cookie(None)):
-    """Get all agents"""
-    await get_current_user(session_token=session_token)
+    """Get all agents that user has access to"""
+    user = await get_current_user(session_token=session_token)
     
-    agents = await db.agents.find({}, {"_id": 0}).to_list(100)
+    # Admins see all agents
+    if user.role == "admin":
+        agents = await db.agents.find({}, {"_id": 0}).to_list(100)
+    else:
+        # Regular users only see agents they have access to
+        if user.agent_access:
+            agents = await db.agents.find({"agent_id": {"$in": user.agent_access}}, {"_id": 0}).to_list(100)
+        else:
+            agents = []
     
     # Convert ISO strings to datetime
     for agent in agents:
