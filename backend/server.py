@@ -284,9 +284,9 @@ async def update_user_access(
 # Admin: Create new agent
 @api_router.post("/admin/agents")
 async def create_agent(
-    name: str,
-    description: str,
-    required_files: str,  # Comma-separated
+    name: str = Form(...),
+    description: str = Form(...),
+    required_files: str = Form(...),  # Comma-separated
     validation_file: Optional[UploadFile] = File(None),
     main_file: Optional[UploadFile] = File(None),
     session_token: Optional[str] = Cookie(None)
@@ -300,20 +300,23 @@ async def create_agent(
     validation_path = None
     main_path = None
     
+    scripts_dir = ROOT_DIR / "scripts"
+    scripts_dir.mkdir(exist_ok=True)
+    
     if validation_file:
-        validation_path = ROOT_DIR / "scripts" / agent_id / "validate.py"
+        validation_path = scripts_dir / agent_id / "validate.py"
         validation_path.parent.mkdir(parents=True, exist_ok=True)
         with open(validation_path, "wb") as f:
             shutil.copyfileobj(validation_file.file, f)
     
     if main_file:
-        main_path = ROOT_DIR / "scripts" / agent_id / "main.py"
+        main_path = scripts_dir / agent_id / "main.py"
         main_path.parent.mkdir(parents=True, exist_ok=True)
         with open(main_path, "wb") as f:
             shutil.copyfileobj(main_file.file, f)
     
     # Parse required files
-    required_files_list = [f.strip() for f in required_files.split(",")]
+    required_files_list = [f.strip() for f in required_files.split(",") if f.strip()]
     
     # Create agent
     agent_doc = {
