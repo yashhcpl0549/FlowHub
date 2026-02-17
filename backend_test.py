@@ -252,8 +252,10 @@ print('User ID: ' + userId);
 
         url = f"{self.base_url}/api/jobs/{self.job_id}/download/{filename}"
         headers = {}
+        cookies = {}
+        
         if self.session_token:
-            headers['Authorization'] = f'Bearer {self.session_token}'
+            cookies['session_token'] = self.session_token
 
         print(f"\n🔍 Testing File Download ({filename})...")
         print(f"   URL: {url}")
