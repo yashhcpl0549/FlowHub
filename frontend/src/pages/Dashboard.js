@@ -93,6 +93,15 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {user?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  data-testid="admin-link"
+                  className="text-sm bg-amber-50 text-amber-700 px-3 py-1.5 rounded-md border border-amber-200 hover:bg-amber-100 transition-all font-medium"
+                >
+                  Admin Panel
+                </Link>
+              )}
               <div className="text-right">
                 <div className="text-sm font-medium text-slate-900">{user?.name}</div>
                 <div className="text-xs text-slate-500">{user?.email}</div>
