@@ -173,12 +173,17 @@ async def create_session(request: SessionRequest, response: Response):
                 }}
             )
         else:
+            # Check if this should be an admin
+            is_admin = data["email"] == "yash.b@mamaearth.in"
+            
             # Create new user
             user_doc = {
                 "user_id": user_id,
                 "email": data["email"],
                 "name": data["name"],
                 "picture": data["picture"],
+                "role": "admin" if is_admin else "user",
+                "agent_access": [],
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             await db.users.insert_one(user_doc)
