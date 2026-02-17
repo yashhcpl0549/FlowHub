@@ -235,12 +235,16 @@ print('Admin User ID: ' + userId);
         validation_content = "# Validation script\nprint('Validation passed')"
         main_content = "# Main processing script\nprint('Processing completed')"
         
+        # Prepare form data with files
         files = {
-            'name': (None, 'Test Agent for FlowHub'),
-            'description': (None, 'Test agent created by admin test suite for FlowHub automation'),
-            'required_files': (None, 'Input Data, Config File'),
             'validation_file': ('validate.py', validation_content, 'text/plain'),
             'main_file': ('main.py', main_content, 'text/plain')
+        }
+        
+        data = {
+            'name': 'Test Agent for FlowHub',
+            'description': 'Test agent created by admin test suite for FlowHub automation',
+            'required_files': 'Input Data, Config File'
         }
         
         success, response = self.run_test(
@@ -248,7 +252,8 @@ print('Admin User ID: ' + userId);
             "POST",
             "admin/agents",
             200,
-            files=files
+            files=files,
+            form_data=data
         )
         
         if success and 'agent_id' in response:
