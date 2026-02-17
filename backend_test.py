@@ -102,7 +102,7 @@ db.users.insertOne({{
 db.user_sessions.insertOne({{
   user_id: userId,
   session_token: sessionToken,
-  expires_at: '{(datetime.now(timezone.utc)).isoformat()}',
+  expires_at: '{(datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}',
   created_at: '{datetime.now(timezone.utc).isoformat()}'
 }});
 print('Session token: ' + sessionToken);
