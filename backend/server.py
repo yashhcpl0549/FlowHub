@@ -426,7 +426,7 @@ async def upload_files(
     files: List[UploadFile] = File(...),
     session_token: Optional[str] = Cookie(None)
 ):
-    """Upload input files for an agent"""
+    """Upload input files for an agent - stores in GCS if configured, otherwise local"""
     user = await get_current_user(session_token=session_token)
     
     # Verify agent exists
@@ -436,31 +436,88 @@ async def upload_files(
     
     # Create job
     job_id = f"job_{uuid.uuid4().hex[:12]}"
-    job_dir = UPLOADS_DIR / job_id
-    job_dir.mkdir(exist_ok=True)
+    
+    # Determine bucket to use
+    bucket_name = agent.get('gcs_bucket') or GCS_DEFAULT_BUCKET
     
     uploaded_files = []
+    file_metadata = []
     
-    for file in files:
-        file_id = f"file_{uuid.uuid4().hex[:8]}"
-        file_path = job_dir / file.filename
+    if gcs_client and bucket_name:
+        # Upload to GCS
+        try:
+            bucket = gcs_client.bucket(bucket_name)
+            
+            for idx, file in enumerate(files):
+                # Create standardized blob name: jobs/{job_id}/{index}_{original_filename}
+                blob_name = f"jobs/{job_id}/{idx}_{file.filename}"
+                blob = bucket.blob(blob_name)
+                
+                # Upload file
+                file.file.seek(0)
+                blob.upload_from_file(file.file, content_type=file.content_type)
+                
+                # Store metadata
+                file_id = f"file_{uuid.uuid4().hex[:8]}"
+                file_doc = {
+                    "file_id": file_id,
+                    "job_id": job_id,
+                    "user_id": user.user_id,
+                    "file_name": file.filename,
+                    "file_path": f"gs://{bucket_name}/{blob_name}",
+                    "gcs_bucket": bucket_name,
+                    "gcs_blob_name": blob_name,
+                    "file_type": file.content_type or "application/octet-stream",
+                    "storage_type": "gcs",
+                    "uploaded_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.files.insert_one(file_doc)
+                uploaded_files.append(file.filename)
+                file_metadata.append({
+                    "filename": file.filename,
+                    "gcs_path": f"gs://{bucket_name}/{blob_name}",
+                    "bucket": bucket_name,
+                    "blob_name": blob_name
+                })
+                
+            logger.info(f"Uploaded {len(files)} files to GCS bucket {bucket_name} for job {job_id}")
         
-        # Save file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        except Exception as e:
+            logger.error(f"GCS upload failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload to GCS: {str(e)}")
+    
+    else:
+        # Fallback to local storage
+        job_dir = UPLOADS_DIR / job_id
+        job_dir.mkdir(exist_ok=True)
         
-        # Store file info
-        file_doc = {
-            "file_id": file_id,
-            "job_id": job_id,
-            "user_id": user.user_id,
-            "file_name": file.filename,
-            "file_path": str(file_path),
-            "file_type": file.content_type or "application/octet-stream",
-            "uploaded_at": datetime.now(timezone.utc).isoformat()
-        }
-        await db.files.insert_one(file_doc)
-        uploaded_files.append(file.filename)
+        for idx, file in enumerate(files):
+            file_id = f"file_{uuid.uuid4().hex[:8]}"
+            file_path = job_dir / file.filename
+            
+            # Save file
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            
+            # Store file info
+            file_doc = {
+                "file_id": file_id,
+                "job_id": job_id,
+                "user_id": user.user_id,
+                "file_name": file.filename,
+                "file_path": str(file_path),
+                "file_type": file.content_type or "application/octet-stream",
+                "storage_type": "local",
+                "uploaded_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.files.insert_one(file_doc)
+            uploaded_files.append(file.filename)
+            file_metadata.append({
+                "filename": file.filename,
+                "local_path": str(file_path)
+            })
+        
+        logger.info(f"Uploaded {len(files)} files to local storage for job {job_id}")
     
     # Create job record
     job_doc = {
@@ -469,6 +526,7 @@ async def upload_files(
         "user_id": user.user_id,
         "status": "pending",
         "input_files": uploaded_files,
+        "file_metadata": file_metadata,
         "output_files": [],
         "error_message": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -476,7 +534,12 @@ async def upload_files(
     }
     await db.jobs.insert_one(job_doc)
     
-    return {"job_id": job_id, "uploaded_files": uploaded_files}
+    return {
+        "job_id": job_id,
+        "uploaded_files": uploaded_files,
+        "storage_type": "gcs" if (gcs_client and bucket_name) else "local",
+        "bucket": bucket_name if (gcs_client and bucket_name) else None
+    }
 
 async def run_agent_script(job_id: str, agent_id: str, user_email: str):
     """Background task to run agent script"""
