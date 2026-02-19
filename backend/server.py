@@ -86,6 +86,7 @@ class Agent(BaseModel):
     name: str
     description: str
     required_files: List[str]
+    gcs_bucket: Optional[str] = None  # Custom bucket for this agent (falls back to default)
     validation_script: Optional[str] = None  # Path to validation script
     main_script: Optional[str] = None  # Path to main processing script
     status: str = "active"
