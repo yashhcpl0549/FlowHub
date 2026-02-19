@@ -306,6 +306,7 @@ async def create_agent(
     name: str = Form(...),
     description: str = Form(...),
     required_files: str = Form(...),  # Comma-separated
+    gcs_bucket: Optional[str] = Form(None),  # Optional custom bucket
     validation_file: Optional[UploadFile] = File(None),
     main_file: Optional[UploadFile] = File(None),
     session_token: Optional[str] = Cookie(None)
@@ -343,6 +344,7 @@ async def create_agent(
         "name": name,
         "description": description,
         "required_files": required_files_list,
+        "gcs_bucket": gcs_bucket if gcs_bucket else None,
         "validation_script": str(validation_path) if validation_path else None,
         "main_script": str(main_path) if main_path else None,
         "status": "active",
