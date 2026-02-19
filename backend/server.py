@@ -563,10 +563,15 @@ async def run_agent_script(job_id: str, agent_id: str, user_email: str):
         resend_module=resend
     )
 
+class ExecuteRequest(BaseModel):
+    job_id: str
+
+# ... existing models ...
+
 @api_router.post("/agents/{agent_id}/execute")
 async def execute_agent(
     agent_id: str,
-    job_id: str,
+    request: ExecuteRequest,
     background_tasks: BackgroundTasks,
     session_token: Optional[str] = Cookie(None)
 ):
@@ -574,7 +579,7 @@ async def execute_agent(
     user = await get_current_user(session_token=session_token)
     
     # Verify job exists and belongs to user
-    job = await db.jobs.find_one({"job_id": job_id, "user_id": user.user_id}, {"_id": 0})
+    job = await db.jobs.find_one({"job_id": request.job_id, "user_id": user.user_id}, {"_id": 0})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
@@ -582,9 +587,9 @@ async def execute_agent(
         raise HTTPException(status_code=400, detail="Job already processed")
     
     # Start background task
-    background_tasks.add_task(run_agent_script, job_id, agent_id, user.email)
+    background_tasks.add_task(run_agent_script, request.job_id, agent_id, user.email)
     
-    return {"message": "Job execution started", "job_id": job_id}
+    return {"message": "Job execution started", "job_id": request.job_id}
 
 @api_router.get("/jobs", response_model=List[Job])
 async def get_jobs(session_token: Optional[str] = Cookie(None)):
