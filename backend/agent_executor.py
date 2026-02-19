@@ -115,6 +115,8 @@ async def run_agent_script(
         
         # Run main script if provided
         main_script = agent.get('main_script')
+        execution_output = ""
+        
         if main_script and os.path.exists(main_script):
             logger.info(f"Running main script for job {job_id}")
             
@@ -139,8 +141,19 @@ async def run_agent_script(
                 timeout=300  # 5 minutes
             )
             
+            # Capture output
+            execution_output = f"=== EXECUTION OUTPUT ===\n{result.stdout}\n"
+            if result.stderr:
+                execution_output += f"\n=== STDERR ===\n{result.stderr}\n"
+            
+            # Store execution output
+            await db.jobs.update_one(
+                {"job_id": job_id},
+                {"$set": {"execution_output": execution_output}}
+            )
+            
             if result.returncode != 0:
-                error_msg = f"Processing failed: {result.stderr or result.stdout}"
+                error_msg = f"Processing failed:\n{execution_output}"
                 logger.error(error_msg)
                 await db.jobs.update_one(
                     {"job_id": job_id},
@@ -152,7 +165,7 @@ async def run_agent_script(
                 )
                 return
             
-            logger.info(f"Main script completed for job {job_id}: {result.stdout}")
+            logger.info(f"Main script completed for job {job_id}")
             
             # List output files
             output_files = []
