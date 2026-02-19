@@ -80,8 +80,11 @@ async def run_agent_script(
         if validation_script and os.path.exists(validation_script):
             logger.info(f"Running validation script for job {job_id}")
             
+            # Use the same Python interpreter that's running this code
+            python_executable = sys.executable
+            
             result = subprocess.run(
-                ["python", validation_script, str(job_config_path)],
+                [python_executable, validation_script, str(job_config_path)],
                 capture_output=True,
                 text=True,
                 timeout=60
