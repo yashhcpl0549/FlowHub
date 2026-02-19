@@ -87,7 +87,10 @@ export default function AgentDetail() {
       await axios.post(
         `${BACKEND_URL}/api/agents/${agentId}/execute`,
         { job_id: jobId },
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
       
       toast.success('Job execution started! You will receive an email when complete.');
@@ -98,7 +101,29 @@ export default function AgentDetail() {
       }, 2000);
     } catch (error) {
       console.error('Execution failed:', error);
-      toast.error(error.response?.data?.detail || 'Execution failed');
+      
+      // Handle validation errors
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        
+        // Check if it's a validation error array
+        if (Array.isArray(detail)) {
+          const errorMessages = detail.map(err => {
+            if (typeof err === 'object' && err.msg) {
+              return err.msg;
+            }
+            return String(err);
+          }).join(', ');
+          toast.error(`Validation error: ${errorMessages}`);
+        } else if (typeof detail === 'string') {
+          toast.error(detail);
+        } else {
+          toast.error('Execution failed - please check your input');
+        }
+      } else {
+        toast.error('Execution failed - please try again');
+      }
+      
       setExecuting(false);
     }
   };
