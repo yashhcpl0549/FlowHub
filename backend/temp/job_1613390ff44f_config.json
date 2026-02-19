@@ -1,0 +1,11 @@
+{
+  "job_id": "job_1613390ff44f",
+  "agent_id": "agent_f016771c0b32",
+  "files": [
+    {
+      "filename": "test_sales.csv",
+      "storage_type": "local",
+      "local_path": "/app/backend/uploads/job_1613390ff44f/test_sales.csv"
+    }
+  ]
+}
