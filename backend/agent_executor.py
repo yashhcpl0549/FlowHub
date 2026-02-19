@@ -75,6 +75,8 @@ async def run_agent_script(
         
         # Run validation script if provided
         validation_script = agent.get('validation_script')
+        validation_output = ""
+        
         if validation_script and os.path.exists(validation_script):
             logger.info(f"Running validation script for job {job_id}")
             
@@ -85,8 +87,19 @@ async def run_agent_script(
                 timeout=60
             )
             
+            # Capture output
+            validation_output = f"=== VALIDATION OUTPUT ===\n{result.stdout}\n"
+            if result.stderr:
+                validation_output += f"\n=== STDERR ===\n{result.stderr}\n"
+            
+            # Store validation output
+            await db.jobs.update_one(
+                {"job_id": job_id},
+                {"$set": {"validation_output": validation_output}}
+            )
+            
             if result.returncode != 0:
-                error_msg = f"Validation failed: {result.stderr or result.stdout}"
+                error_msg = f"Validation failed:\n{validation_output}"
                 logger.error(error_msg)
                 await db.jobs.update_one(
                     {"job_id": job_id},
@@ -98,7 +111,7 @@ async def run_agent_script(
                 )
                 return
             
-            logger.info(f"Validation passed for job {job_id}: {result.stdout}")
+            logger.info(f"Validation passed for job {job_id}")
         
         # Run main script if provided
         main_script = agent.get('main_script')
