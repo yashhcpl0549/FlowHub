@@ -541,126 +541,25 @@ async def upload_files(
         "bucket": bucket_name if (gcs_client and bucket_name) else None
     }
 
+from backend.agent_executor import run_agent_script as execute_agent_job
+
 async def run_agent_script(job_id: str, agent_id: str, user_email: str):
-    """Background task to run agent script"""
-    try:
-        logger.info(f"Starting job {job_id} for agent {agent_id}")
-        
-        # Update job status to processing
-        await db.jobs.update_one(
-            {"job_id": job_id},
-            {"$set": {"status": "processing", "updated_at": datetime.now(timezone.utc).isoformat()}}
-        )
-        
-        # Get agent info
-        agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
-        
-        # Get input files
-        input_files = await db.files.find({"job_id": job_id}, {"_id": 0}).to_list(100)
-        
-        # Run validation and processing script
-        job_input_dir = UPLOADS_DIR / job_id
-        job_output_dir = OUTPUTS_DIR / job_id
-        job_output_dir.mkdir(exist_ok=True)
-        
-        # Mock script execution - validate inputs
-        required_files = agent.get('required_files', [])
-        uploaded_file_names = [f['file_name'] for f in input_files]
-        
-        # Check if all required files are present
-        missing_files = [rf for rf in required_files if not any(rf.lower() in uf.lower() for uf in uploaded_file_names)]
-        
-        if missing_files:
-            error_msg = f"Missing required files: {', '.join(missing_files)}"
-            await db.jobs.update_one(
-                {"job_id": job_id},
-                {"$set": {
-                    "status": "failed",
-                    "error_message": error_msg,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
-            )
-            return
-        
-        # Simulate processing time
-        await asyncio.sleep(3)
-        
-        # Generate mock output files
-        output_file_name = f"output_{job_id}.xlsx"
-        output_file_path = job_output_dir / output_file_name
-        
-        # Create a simple output file
-        with open(output_file_path, 'w') as f:
-            f.write(f"Job ID: {job_id}\n")
-            f.write(f"Agent: {agent['name']}\n")
-            f.write(f"Processed at: {datetime.now(timezone.utc).isoformat()}\n")
-            f.write(f"Input files: {', '.join(uploaded_file_names)}\n")
-            f.write("\nProcessing completed successfully!\n")
-        
-        # Update job with output
-        await db.jobs.update_one(
-            {"job_id": job_id},
-            {"$set": {
-                "status": "completed",
-                "output_files": [output_file_name],
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }}
-        )
-        
-        # Send email notification
-        if RESEND_API_KEY:
-            try:
-                html_content = f"""
-                <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <h2 style="color: #2563EB;">Job Completed Successfully</h2>
-                        <p>Your automation job has been processed successfully.</p>
-                        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-                            <tr>
-                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Job ID:</strong></td>
-                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">{job_id}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Agent:</strong></td>
-                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">{agent['name']}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Status:</strong></td>
-                                <td style="padding: 8px; border-bottom: 1px solid #ddd;">Completed</td>
-                            </tr>
-                        </table>
-                        <p>Your output files are ready for download on the platform.</p>
-                        <p style="margin-top: 30px; color: #666; font-size: 12px;">This is an automated message from FlowHub.</p>
-                    </div>
-                </body>
-                </html>
-                """
-                
-                params = {
-                    "from": SENDER_EMAIL,
-                    "to": [user_email],
-                    "subject": f"Job Completed: {agent['name']}",
-                    "html": html_content
-                }
-                
-                await asyncio.to_thread(resend.Emails.send, params)
-                logger.info(f"Email sent to {user_email} for job {job_id}")
-            except Exception as e:
-                logger.error(f"Failed to send email: {str(e)}")
-        
-        logger.info(f"Job {job_id} completed successfully")
-        
-    except Exception as e:
-        logger.error(f"Job {job_id} failed: {str(e)}")
-        await db.jobs.update_one(
-            {"job_id": job_id},
-            {"$set": {
-                "status": "failed",
-                "error_message": str(e),
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }}
-        )
+    """Wrapper for agent script execution"""
+    agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
+    await execute_agent_job(
+        job_id=job_id,
+        agent_id=agent_id,
+        user_email=user_email,
+        db=db,
+        agent=agent,
+        gcs_client=gcs_client,
+        GCS_DEFAULT_BUCKET=GCS_DEFAULT_BUCKET,
+        ROOT_DIR=ROOT_DIR,
+        OUTPUTS_DIR=OUTPUTS_DIR,
+        RESEND_API_KEY=RESEND_API_KEY,
+        SENDER_EMAIL=SENDER_EMAIL,
+        resend_module=resend
+    )
 
 @api_router.post("/agents/{agent_id}/execute")
 async def execute_agent(
