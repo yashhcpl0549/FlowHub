@@ -58,6 +58,9 @@ export default function ManageAgents() {
     data.append('description', formData.description);
     data.append('required_files', formData.required_files);
     
+    if (formData.gcs_bucket) {
+      data.append('gcs_bucket', formData.gcs_bucket);
+    }
     if (formData.validation_file) {
       data.append('validation_file', formData.validation_file);
     }
