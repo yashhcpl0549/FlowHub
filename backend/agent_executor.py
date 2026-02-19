@@ -138,7 +138,7 @@ async def run_agent_script(
                 json.dump(file_info, f, indent=2)
             
             result = subprocess.run(
-                ["python", main_script, str(job_config_path)],
+                [python_executable, main_script, str(job_config_path)],
                 capture_output=True,
                 text=True,
                 timeout=300  # 5 minutes
