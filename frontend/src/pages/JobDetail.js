@@ -217,6 +217,36 @@ export default function JobDetail() {
               </div>
             )}
 
+            {/* Script Outputs */}
+            {(job.validation_output || job.execution_output) && (
+              <div className="bg-slate-900 rounded-lg p-6 fade-in">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Script Output
+                </h3>
+                
+                {job.validation_output && (
+                  <div className="mb-4">
+                    <div className="text-sm text-emerald-400 font-medium mb-2">Validation Script:</div>
+                    <pre className="text-xs text-slate-300 font-mono bg-slate-800 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">
+                      {job.validation_output}
+                    </pre>
+                  </div>
+                )}
+                
+                {job.execution_output && (
+                  <div>
+                    <div className="text-sm text-blue-400 font-medium mb-2">Main Script:</div>
+                    <pre className="text-xs text-slate-300 font-mono bg-slate-800 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">
+                      {job.execution_output}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Error Message */}
             {job.status === 'failed' && job.error_message && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-6 fade-in">
