@@ -543,7 +543,7 @@ async def upload_files(
         "bucket": bucket_name if (gcs_client and bucket_name) else None
     }
 
-from backend.agent_executor import run_agent_script as execute_agent_job
+from agent_executor import run_agent_script as execute_agent_job
 
 async def run_agent_script(job_id: str, agent_id: str, user_email: str):
     """Wrapper for agent script execution"""
