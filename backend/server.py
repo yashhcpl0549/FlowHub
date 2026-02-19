@@ -101,6 +101,8 @@ class Job(BaseModel):
     input_files: List[str]
     output_files: List[str]
     error_message: Optional[str] = None
+    validation_output: Optional[str] = None  # Validation script output
+    execution_output: Optional[str] = None   # Main script output
     created_at: datetime
     updated_at: datetime
 
