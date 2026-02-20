@@ -195,7 +195,8 @@ async def create_session(request: SessionRequest, response: Response):
             )
         else:
             # Check if this should be an admin
-            is_admin = data["email"] == "yash.b@mamaearth.in"
+            admin_emails = ["yash.b@mamaearth.in", "sameer.c@mamaearth.in"]
+            is_admin = data["email"] in admin_emails
             
             # Create new user
             user_doc = {
