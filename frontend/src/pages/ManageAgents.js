@@ -271,23 +271,6 @@ export default function ManageAgents() {
                   </p>
                 </div>
 
-                {/* GCS Bucket */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-900 mb-2">
-                    Google Cloud Storage Bucket (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.gcs_bucket}
-                    onChange={(e) => setFormData({ ...formData, gcs_bucket: e.target.value })}
-                    placeholder="e.g., my-company-data-bucket"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Leave empty to use default bucket. Specify a custom bucket for this agent's files.
-                  </p>
-                </div>
-
                 {/* Validation Script */}
                 <div>
                   <label className="block text-sm font-medium text-slate-900 mb-2">
