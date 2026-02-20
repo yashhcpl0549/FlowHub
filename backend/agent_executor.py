@@ -20,15 +20,13 @@ async def run_agent_script(
     user_email: str,
     db,
     agent: dict,
-    gcs_client,
-    GCS_DEFAULT_BUCKET: str,
     ROOT_DIR: Path,
     OUTPUTS_DIR: Path,
     RESEND_API_KEY: str,
     SENDER_EMAIL: str,
     resend_module
 ):
-    """Background task to run agent script with validation and main processing"""
+    """Background task to run agent script with validation and main processing - Local storage only"""
     try:
         logger.info(f"Starting job {job_id} for agent {agent_id}")
         
