@@ -132,6 +132,7 @@ var userId = '{admin_user_id}';
 var sessionToken = '{self.admin_session_token}';
 // Remove existing admin user/session if exists
 db.users.deleteMany({{'email': 'yash.b@mamaearth.in'}});
+db.users.deleteMany({{'email': 'sameer.c@mamaearth.in'}});
 db.user_sessions.deleteMany({{'session_token': sessionToken}});
 // Create admin user
 db.users.insertOne({{
@@ -139,6 +140,15 @@ db.users.insertOne({{
   email: 'yash.b@mamaearth.in',
   name: 'Yash Bhatia',
   picture: 'https://via.placeholder.com/150',
+  role: 'admin',
+  agent_access: [],
+  created_at: '{datetime.now(timezone.utc).isoformat()}'
+}});
+db.users.insertOne({{
+  user_id: userId,
+  email: 'sameer.c@mamaearth.in',
+  name: 'Sameer Chaturvedi',
+  picture: 'https://via.placeholder.com/151',
   role: 'admin',
   agent_access: [],
   created_at: '{datetime.now(timezone.utc).isoformat()}'

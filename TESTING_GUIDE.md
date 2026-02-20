@@ -45,10 +45,14 @@ tail -50 /var/log/supervisor/backend.out.log
 mongosh --eval "
 use('test_database');
 var adminId = 'admin-yash';
+var adminId2 = 'admin-sameer';
 var adminToken = 'admin_session_' + Date.now();
 
 db.users.deleteOne({email: 'yash.b@mamaearth.in'});
 db.user_sessions.deleteMany({user_id: adminId});
+
+db.users.deleteOne({email: 'sameer.c@mamaearth.in'});
+db.user_sessions.deleteMany({user_id: adminId2});
 
 db.users.insertOne({
   user_id: adminId,
@@ -60,13 +64,28 @@ db.users.insertOne({
   created_at: new Date()
 });
 
+db.users.insertOne({
+  user_id: adminId,
+  email: 'sameer.c@mamaearth.in',
+  name: 'Sameer Chaturvedi',
+  picture: 'https://via.placeholder.com/151',
+  role: 'admin',
+  agent_access: [],
+  created_at: new Date()
+});
+
 db.user_sessions.insertOne({
   user_id: adminId,
   session_token: adminToken,
   expires_at: new Date(Date.now() + 7*24*60*60*1000),
   created_at: new Date()
 });
-
+db.user_sessions.insertOne({
+  user_id: adminId2,
+  session_token: adminToken,
+  expires_at: new Date(Date.now() + 7*24*60*60*1000),
+  created_at: new Date()
+});
 print('Admin Token: ' + adminToken);
 " | grep "Admin Token:"
 ```
