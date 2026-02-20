@@ -179,15 +179,24 @@ export default function ManageUsers() {
                       </span>
                     </td>
                     <td className="p-4">
-                      {user.role !== 'admin' && (
+                      <div className="flex items-center gap-2">
+                        {user.role !== 'admin' && (
+                          <button
+                            onClick={() => handleEditAccess(user)}
+                            data-testid="edit-access-btn"
+                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Edit Access
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleEditAccess(user)}
-                          data-testid="edit-access-btn"
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          onClick={() => toggleRole(user)}
+                          disabled={updatingRole}
+                          className="text-sm text-slate-600 hover:text-slate-900 font-medium"
                         >
-                          Edit Access
+                          {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
