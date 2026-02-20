@@ -1,5 +1,5 @@
 """
-Agent script executor with GCS support
+Agent script executor - Local storage only
 """
 import asyncio
 import subprocess
@@ -9,7 +9,6 @@ import sys
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
-from google.cloud import storage
 
 logger = logging.getLogger(__name__)
 
