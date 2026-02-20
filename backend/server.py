@@ -284,6 +284,32 @@ async def update_user_access(
     
     return {"message": "User access updated", "agent_ids": agent_ids}
 
+# Admin: Update user role
+class UpdateRoleRequest(BaseModel):
+    role: str  # "admin" or "user"
+
+@api_router.put("/admin/users/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    request: UpdateRoleRequest,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Update user's role (admin only)"""
+    await require_admin(session_token=session_token)
+    
+    if request.role not in ["admin", "user"]:
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
+    
+    result = await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"role": request.role}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": f"User role updated to {request.role}", "role": request.role}
+
 # Admin: Create new agent
 @api_router.post("/admin/agents")
 async def create_agent(
