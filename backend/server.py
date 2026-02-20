@@ -501,8 +501,6 @@ async def upload_files(
         "storage_type": "local"
     }
 
-from agent_executor import run_agent_script as execute_agent_job
-
 async def run_agent_script(job_id: str, agent_id: str, user_email: str):
     """Wrapper for agent script execution"""
     agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
@@ -512,8 +510,6 @@ async def run_agent_script(job_id: str, agent_id: str, user_email: str):
         user_email=user_email,
         db=db,
         agent=agent,
-        gcs_client=gcs_client,
-        GCS_DEFAULT_BUCKET=GCS_DEFAULT_BUCKET,
         ROOT_DIR=ROOT_DIR,
         OUTPUTS_DIR=OUTPUTS_DIR,
         RESEND_API_KEY=RESEND_API_KEY,
