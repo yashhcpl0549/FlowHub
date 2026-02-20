@@ -52,18 +52,9 @@ async def run_agent_script(
         for file_doc in input_files:
             file_entry = {
                 "filename": file_doc["file_name"],
-                "storage_type": file_doc.get("storage_type", "local")
+                "storage_type": "local",
+                "local_path": file_doc["file_path"]
             }
-            
-            if file_doc.get("storage_type") == "gcs":
-                file_entry.update({
-                    "gcs_bucket": file_doc["gcs_bucket"],
-                    "gcs_blob_name": file_doc["gcs_blob_name"],
-                    "gcs_path": file_doc["file_path"]
-                })
-            else:
-                file_entry["local_path"] = file_doc["file_path"]
-            
             file_info["files"].append(file_entry)
         
         # Save file info as JSON for scripts to read
