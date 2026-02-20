@@ -113,14 +113,10 @@ async def run_agent_script(
         if main_script and os.path.exists(main_script):
             logger.info(f"Running main script for job {job_id}")
             
-            # Prepare output directory/path
-            if gcs_client and (agent.get('gcs_bucket') or GCS_DEFAULT_BUCKET):
-                bucket_name = agent.get('gcs_bucket') or GCS_DEFAULT_BUCKET
-                output_path = f"gs://{bucket_name}/jobs/{job_id}/output"
-            else:
-                job_output_dir = OUTPUTS_DIR / job_id
-                job_output_dir.mkdir(exist_ok=True)
-                output_path = str(job_output_dir)
+            # Prepare output directory (local only)
+            job_output_dir = OUTPUTS_DIR / job_id
+            job_output_dir.mkdir(exist_ok=True)
+            output_path = str(job_output_dir)
             
             # Add output path to config
             file_info["output_path"] = output_path
@@ -160,17 +156,10 @@ async def run_agent_script(
             
             logger.info(f"Main script completed for job {job_id}")
             
-            # List output files
+            # List output files (local only)
             output_files = []
-            if gcs_client and (agent.get('gcs_bucket') or GCS_DEFAULT_BUCKET):
-                bucket_name = agent.get('gcs_bucket') or GCS_DEFAULT_BUCKET
-                bucket = gcs_client.bucket(bucket_name)
-                blobs = bucket.list_blobs(prefix=f"jobs/{job_id}/output/")
-                output_files = [blob.name.split('/')[-1] for blob in blobs if not blob.name.endswith('/')]
-            else:
-                job_output_dir = OUTPUTS_DIR / job_id
-                if job_output_dir.exists():
-                    output_files = [f.name for f in job_output_dir.iterdir() if f.is_file()]
+            if job_output_dir.exists():
+                output_files = [f.name for f in job_output_dir.iterdir() if f.is_file()]
         
         else:
             # No scripts provided - use mock processing
