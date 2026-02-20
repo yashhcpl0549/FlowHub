@@ -70,6 +70,37 @@ export default function ManageUsers() {
     }
   };
 
+  const toggleRole = async (user) => {
+    if (updatingRole) return;
+    
+    const newRole = user.role === 'admin' ? 'user' : 'admin';
+    const confirmMsg = newRole === 'admin' 
+      ? `Make ${user.name} an admin?` 
+      : `Remove admin privileges from ${user.name}?`;
+    
+    if (!window.confirm(confirmMsg)) return;
+    
+    setUpdatingRole(true);
+    try {
+      await axios.put(
+        `${BACKEND_URL}/api/admin/users/${user.user_id}/role`,
+        { role: newRole },
+        { 
+          withCredentials: true,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+      
+      toast.success(`${user.name} is now ${newRole === 'admin' ? 'an admin' : 'a regular user'}`);
+      loadData();
+    } catch (error) {
+      console.error('Failed to update role:', error);
+      toast.error('Failed to update user role');
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
