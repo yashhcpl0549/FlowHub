@@ -12,6 +12,7 @@ export default function ManageUsers() {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedAccess, setSelectedAccess] = useState([]);
+  const [updatingRole, setUpdatingRole] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
