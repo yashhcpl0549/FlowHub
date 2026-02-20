@@ -80,7 +80,6 @@ export default function ManageAgents() {
         name: '',
         description: '',
         required_files: '',
-        gcs_bucket: '',
         validation_file: null,
         main_file: null
       });
