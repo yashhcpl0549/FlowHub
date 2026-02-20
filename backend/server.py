@@ -16,10 +16,6 @@ import httpx
 import shutil
 import subprocess
 
-from google.cloud import storage
-from google.oauth2 import service_account
-import json
-
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -27,20 +23,6 @@ load_dotenv(ROOT_DIR / '.env')
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
-
-# GCS Configuration
-GCS_DEFAULT_BUCKET = os.environ.get('GCS_DEFAULT_BUCKET', '')
-GCS_CREDENTIALS_PATH = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')
-
-# Initialize GCS client if credentials are provided
-gcs_client = None
-if GCS_CREDENTIALS_PATH and os.path.exists(GCS_CREDENTIALS_PATH):
-    try:
-        credentials = service_account.Credentials.from_service_account_file(GCS_CREDENTIALS_PATH)
-        gcs_client = storage.Client(credentials=credentials)
-        logger.info("GCS client initialized successfully")
-    except Exception as e:
-        logger.warning(f"Failed to initialize GCS client: {str(e)}")
 
 # Resend API setup
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
