@@ -215,7 +215,7 @@ async def run_agent_script(
                             </tr>
                         </table>
                         <p>Your output files are ready for download on the platform.</p>
-                        <p style="margin-top: 30px; color: #666; font-size: 12px;">This is an automated message from FlowHub.</p>
+                        <p style="margin-top: 30px; color: #666; font-size: 12px;">This is an automated message from Honasa Task Force.</p>
                     </div>
                 </body>
                 </html>

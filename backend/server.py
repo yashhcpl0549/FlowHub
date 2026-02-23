@@ -657,7 +657,7 @@ async def seed_agents():
 
 @api_router.get("/")
 async def root():
-    return {"message": "FlowHub API"}
+    return {"message": "Honasa Task Force API"}
 
 # Include router
 app.include_router(api_router)
