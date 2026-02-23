@@ -60,7 +60,7 @@ export default function JobDetail() {
   const handleDownload = async (filename) => {
     try {
       const response = await axios.get(
-        `${BACKEND_URL}/api/jobs/${jobId}/download/${filename}`,
+        `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}`,
         {
           withCredentials: true,
           responseType: 'blob'
@@ -68,15 +68,24 @@ export default function JobDetail() {
       );
 
       // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] || 'application/octet-stream' 
+      });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        link.remove();
+      }, 100);
     } catch (error) {
       console.error('Download failed:', error);
+      alert('Download failed. Please try again.');
     }
   };
 
