@@ -363,7 +363,7 @@ export default function AgentDetail() {
             </div>
 
             {/* Status Info */}
-            {uploadComplete && (
+            {uploadComplete && !jobStatus && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6 fade-in">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
@@ -380,14 +380,94 @@ export default function AgentDetail() {
               </div>
             )}
 
-            {executing && (
+            {/* Processing Status */}
+            {jobStatus === 'processing' && (
               <div className="bg-sky-50 border border-sky-200 rounded-lg p-6 fade-in">
                 <div className="flex items-start gap-3">
-                  <div className="loading-spinner w-5 h-5 flex-shrink-0 mt-0.5"></div>
+                  <div className="loading-spinner w-5 h-5 flex-shrink-0 mt-0.5" style={{ width: '20px', height: '20px', borderWidth: '2px' }}></div>
                   <div>
-                    <div className="font-medium text-sky-900 mb-1">Processing...</div>
+                    <div className="font-medium text-sky-900 mb-1">Processing Your Files...</div>
                     <div className="text-sm text-sky-700">
-                      Your job is being processed. You'll be redirected to the job status page shortly.
+                      This may take a few minutes depending on the number of files. Please wait...
+                    </div>
+                    <div className="text-xs text-sky-600 mt-2 font-mono">
+                      Job ID: {jobId}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Job Completed - Show Output Files */}
+            {jobStatus === 'completed' && jobResult && (
+              <div className="space-y-4 fade-in">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-6">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-medium text-emerald-900 mb-1">Job Completed Successfully!</div>
+                      <div className="text-sm text-emerald-700">
+                        Your files have been processed. Download the output below.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Output Files */}
+                {jobResult.output_files && jobResult.output_files.length > 0 && (
+                  <div className="bg-white rounded-lg border border-slate-200 p-6">
+                    <h4 className="text-base font-semibold text-slate-900 mb-3">Output Files</h4>
+                    <div className="space-y-2">
+                      {jobResult.output_files.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-emerald-50 rounded-md border border-emerald-200">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-emerald-600" />
+                            <span className="text-sm text-slate-900 font-medium">{file}</span>
+                          </div>
+                          <a
+                            href={getDownloadUrl(file)}
+                            download={file}
+                            data-testid="download-btn"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 transition-all cursor-pointer"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* View Full Details Link */}
+                <div className="text-center">
+                  <Link 
+                    to={`/jobs/${jobId}`}
+                    className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    View full job details →
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Job Failed */}
+            {jobStatus === 'failed' && jobResult && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6 fade-in">
+                <div className="flex items-start gap-3">
+                  <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-red-900 mb-1">Job Failed</div>
+                    <div className="text-sm text-red-700">
+                      {jobResult.error_message || 'An error occurred during processing.'}
+                    </div>
+                    <div className="mt-3">
+                      <Link 
+                        to={`/jobs/${jobId}`}
+                        className="text-sm text-red-700 hover:text-red-800 hover:underline"
+                      >
+                        View full error details →
+                      </Link>
                     </div>
                   </div>
                 </div>
