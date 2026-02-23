@@ -67,14 +67,17 @@ export default function JobDetail() {
 
   const handleDownload = async (filename) => {
     try {
+      // Get session token from cookie
+      const token = getCookie('session_token');
+      
+      // Build download URL with token as query param
+      const downloadUrl = `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+      
       // Fetch the file as blob with credentials
-      const response = await fetch(
-        `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}`,
-        {
-          method: 'GET',
-          credentials: 'include',
-        }
-      );
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        credentials: 'include',
+      });
       
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status}`);
