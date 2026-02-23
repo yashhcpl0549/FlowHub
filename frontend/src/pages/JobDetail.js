@@ -57,36 +57,19 @@ export default function JobDetail() {
     }
   };
 
-  const handleDownload = async (filename) => {
-    try {
-      const response = await axios.get(
-        `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}`,
-        {
-          withCredentials: true,
-          responseType: 'blob'
-        }
-      );
-
-      // Create download link
-      const blob = new Blob([response.data], { 
-        type: response.headers['content-type'] || 'application/octet-stream' 
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      
-      // Cleanup
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        link.remove();
-      }, 100);
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert('Download failed. Please try again.');
-    }
+  const handleDownload = (filename) => {
+    // Use direct link approach - open download URL in new window/tab
+    // The backend will handle authentication via cookies
+    const downloadUrl = `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}`;
+    
+    // Create a hidden form to POST the download request with credentials
+    const form = document.createElement('form');
+    form.method = 'GET';
+    form.action = downloadUrl;
+    form.target = '_blank';
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
   };
 
   const getStatusBadge = (status) => {
