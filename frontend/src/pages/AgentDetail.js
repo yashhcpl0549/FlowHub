@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, Play, AlertCircle, FileText, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Upload, Play, AlertCircle, FileText, ArrowLeft, CheckCircle2, Download, Clock, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Helper to get cookie value
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
 
 export default function AgentDetail() {
   const { agentId } = useParams();
@@ -16,6 +24,9 @@ export default function AgentDetail() {
   const [executing, setExecuting] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [jobStatus, setJobStatus] = useState(null); // null, 'processing', 'completed', 'failed'
+  const [jobResult, setJobResult] = useState(null);
+  const pollingRef = useRef(null);
 
   useEffect(() => {
     loadAgent();
