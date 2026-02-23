@@ -161,9 +161,22 @@ export default function ManageAgents() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                    {agent.name}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                      {agent.name}
+                    </h3>
+                    {agent.tag && (
+                      <span className={`text-xs font-medium px-2 py-1 rounded-md border ${
+                        agent.tag === 'Finance' 
+                          ? 'text-purple-600 bg-purple-50 border-purple-200'
+                          : agent.tag === 'Marketing'
+                          ? 'text-orange-600 bg-orange-50 border-orange-200'
+                          : 'text-slate-600 bg-slate-50 border-slate-200'
+                      }`}>
+                        {agent.tag}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-slate-600 leading-relaxed mb-3">
                     {agent.description}
                   </p>
