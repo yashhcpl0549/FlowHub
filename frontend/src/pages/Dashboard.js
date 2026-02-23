@@ -149,9 +149,22 @@ export default function Dashboard() {
                   <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
                     <Zap className="w-6 h-6 text-blue-600" strokeWidth={1.5} />
                   </div>
-                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
-                    Active
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {agent.tag && (
+                      <span className={`text-xs font-medium px-2 py-1 rounded-md border ${
+                        agent.tag === 'Finance' 
+                          ? 'text-purple-600 bg-purple-50 border-purple-200'
+                          : agent.tag === 'Marketing'
+                          ? 'text-orange-600 bg-orange-50 border-orange-200'
+                          : 'text-slate-600 bg-slate-50 border-slate-200'
+                      }`}>
+                        {agent.tag}
+                      </span>
+                    )}
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                      Active
+                    </span>
+                  </div>
                 </div>
                 <h4 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
                   {agent.name}
