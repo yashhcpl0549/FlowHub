@@ -21,7 +21,7 @@ export default function Login() {
                 <Play className="w-6 h-6 text-white" strokeWidth={2} />
               </div>
               <h1 className="text-3xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                FlowHub
+                Honasa Flow Hub
               </h1>
             </div>
             <p className="text-slate-600 text-lg">Automation Platform</p>
