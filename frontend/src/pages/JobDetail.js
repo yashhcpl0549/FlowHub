@@ -189,14 +189,16 @@ export default function JobDetail() {
                         <FileText className="w-5 h-5 text-emerald-600" />
                         <span className="text-sm text-slate-900 font-medium">{file}</span>
                       </div>
-                      <button
-                        onClick={() => handleDownload(file)}
+                      <a
+                        href={getDownloadUrl(file)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         data-testid="download-btn"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 transition-all"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 transition-all cursor-pointer"
                       >
                         <Download className="w-4 h-4" />
                         Download
-                      </button>
+                      </a>
                     </div>
                   ))}
                 </div>
