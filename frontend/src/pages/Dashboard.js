@@ -88,7 +88,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                  FlowHub
+                  Honasa Task Force
                 </h1>
               </div>
             </div>

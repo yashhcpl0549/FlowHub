@@ -73,7 +73,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                  FlowHub Admin
+                  Honasa Task Force Admin
                 </h1>
               </div>
             </div>
