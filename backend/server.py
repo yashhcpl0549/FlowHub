@@ -505,7 +505,7 @@ async def upload_files(
 async def run_agent_script(job_id: str, agent_id: str, user_email: str):
     """Wrapper for agent script execution"""
     agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
-    await execute_agent_job(
+    await execute_agent_script(
         job_id=job_id,
         agent_id=agent_id,
         user_email=user_email,
