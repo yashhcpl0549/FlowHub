@@ -94,6 +94,8 @@ export default function AgentDetail() {
     }
 
     setExecuting(true);
+    setJobStatus('processing');
+    
     try {
       await axios.post(
         `${BACKEND_URL}/api/agents/${agentId}/execute`,
@@ -104,14 +106,14 @@ export default function AgentDetail() {
         }
       );
       
-      toast.success('Job execution started! Redirecting to job status...');
+      toast.success('Job execution started! Processing your files...');
       
-      // Navigate to job status page after 2 seconds
-      setTimeout(() => {
-        navigate(`/jobs/${jobId}`);
-      }, 2000);
+      // Start polling for job status
+      startPolling();
+      
     } catch (error) {
       console.error('Execution failed:', error);
+      setJobStatus('failed');
       
       // Handle validation errors
       if (error.response?.data?.detail) {
@@ -137,6 +139,54 @@ export default function AgentDetail() {
       
       setExecuting(false);
     }
+  };
+
+  const startPolling = () => {
+    // Clear any existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
+    
+    // Poll every 3 seconds
+    pollingRef.current = setInterval(async () => {
+      try {
+        const response = await axios.get(`${BACKEND_URL}/api/jobs/${jobId}`, {
+          withCredentials: true
+        });
+        
+        const job = response.data;
+        setJobResult(job);
+        
+        if (job.status === 'completed') {
+          setJobStatus('completed');
+          setExecuting(false);
+          toast.success('Job completed successfully! Output files are ready.');
+          clearInterval(pollingRef.current);
+        } else if (job.status === 'failed') {
+          setJobStatus('failed');
+          setExecuting(false);
+          toast.error('Job failed. Check the output for details.');
+          clearInterval(pollingRef.current);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 3000);
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  // Generate download URL for a file
+  const getDownloadUrl = (filename) => {
+    const token = getCookie('session_token');
+    return `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   };
 
   if (loading) {
