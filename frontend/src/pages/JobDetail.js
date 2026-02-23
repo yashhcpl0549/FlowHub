@@ -218,11 +218,6 @@ export default function JobDetail() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
-                  <div className="text-sm text-blue-900">
-                    ✉️ Output files have also been sent to your email.
-                  </div>
-                </div>
               </div>
             )}
 
