@@ -5,6 +5,14 @@ import { ArrowLeft, Clock, CheckCircle2, XCircle, Zap, Download, FileText, Alert
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
+// Helper to get cookie value
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
 export default function JobDetail() {
   const { jobId } = useParams();
   const navigate = useNavigate();
