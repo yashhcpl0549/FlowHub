@@ -110,7 +110,7 @@ export default function Login() {
                 </div>
                 <div>
                   <div className="font-medium">Instant Processing</div>
-                  <div className="text-slate-300 text-sm">Upload inputs and get results via email and download</div>
+                  <div className="text-slate-300 text-sm">Upload inputs and download results directly from the platform</div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
