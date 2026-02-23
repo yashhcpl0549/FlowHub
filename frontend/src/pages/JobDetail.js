@@ -65,48 +65,15 @@ export default function JobDetail() {
     }
   };
 
-  const handleDownload = async (filename) => {
-    try {
-      // Get session token from cookie
-      const token = getCookie('session_token');
-      
-      // Build download URL with token as query param
-      const downloadUrl = `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-      
-      // Fetch the file as blob with credentials
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
-      }
-      
-      // Get the blob from response
-      const blob = await response.blob();
-      
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      
-      // Trigger download
-      link.click();
-      
-      // Cleanup after a delay
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 200);
-      
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert(`Download failed: ${error.message}`);
-    }
+  const handleDownload = (filename) => {
+    // Get session token from cookie
+    const token = getCookie('session_token');
+    
+    // Build download URL with token as query param
+    const downloadUrl = `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+    
+    // Open in new window to trigger download
+    window.open(downloadUrl, '_blank');
   };
 
   const getStatusBadge = (status) => {
