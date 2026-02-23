@@ -93,7 +93,7 @@ export default function AgentDetail() {
         }
       );
       
-      toast.success('Job execution started! You will receive an email when complete.');
+      toast.success('Job execution started! Redirecting to job status...');
       
       // Navigate to job status page after 2 seconds
       setTimeout(() => {
@@ -295,7 +295,7 @@ export default function AgentDetail() {
                   </div>
                   <div>
                     <div className="font-medium text-slate-900">Receive Results</div>
-                    <div className="text-sm text-slate-600">Get output files via email and download from the platform.</div>
+                    <div className="text-sm text-slate-600">Download output files from the platform when processing completes.</div>
                   </div>
                 </div>
               </div>
@@ -326,7 +326,7 @@ export default function AgentDetail() {
                   <div>
                     <div className="font-medium text-sky-900 mb-1">Processing...</div>
                     <div className="text-sm text-sky-700">
-                      Your job is being processed. You'll receive an email notification when complete.
+                      Your job is being processed. You'll be redirected to the job status page shortly.
                     </div>
                   </div>
                 </div>
