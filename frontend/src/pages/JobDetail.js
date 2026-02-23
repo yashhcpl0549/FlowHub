@@ -191,8 +191,7 @@ export default function JobDetail() {
                       </div>
                       <a
                         href={getDownloadUrl(file)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        download={file}
                         data-testid="download-btn"
                         className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 transition-all cursor-pointer"
                       >
