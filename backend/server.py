@@ -69,6 +69,7 @@ class Agent(BaseModel):
     name: str
     description: str
     required_files: List[str]
+    tag: Optional[str] = None  # Category tag (e.g., "Finance", "Marketing")
     validation_script: Optional[str] = None  # Path to validation script
     main_script: Optional[str] = None  # Path to main processing script
     status: str = "active"
