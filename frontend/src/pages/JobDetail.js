@@ -57,19 +57,45 @@ export default function JobDetail() {
     }
   };
 
-  const handleDownload = (filename) => {
-    // Use direct link approach - open download URL in new window/tab
-    // The backend will handle authentication via cookies
-    const downloadUrl = `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}`;
-    
-    // Create a hidden form to POST the download request with credentials
-    const form = document.createElement('form');
-    form.method = 'GET';
-    form.action = downloadUrl;
-    form.target = '_blank';
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+  const handleDownload = async (filename) => {
+    try {
+      // Fetch the file as blob with credentials
+      const response = await fetch(
+        `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+      
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Trigger download
+      link.click();
+      
+      // Cleanup after a delay
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 200);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert(`Download failed: ${error.message}`);
+    }
   };
 
   const getStatusBadge = (status) => {
