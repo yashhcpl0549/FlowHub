@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 import time
 
 class FlowHubAdminAPITester:
-    def __init__(self, base_url="https://ke30-automation-hub.preview.emergentagent.com"):
+    def __init__(self, base_url="https://flowhub-preview.preview.emergentagent.com"):
         self.base_url = base_url
         self.admin_session_token = "admin_session_1771347668650"  # Admin token for yash.b@mamaearth.in
         self.regular_session_token = None

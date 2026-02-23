@@ -22,7 +22,7 @@
 
 1. **Open browser** and navigate to:
    ```
-   https://ke30-automation-hub.preview.emergentagent.com/dashboard
+   https://flowhub-preview.preview.emergentagent.com/dashboard
    ```
 
 2. **Open DevTools** (Press F12)
