@@ -583,10 +583,13 @@ async def get_job(job_id: str, session_token: Optional[str] = Cookie(None)):
 async def download_output(
     job_id: str,
     filename: str,
-    session_token: Optional[str] = Cookie(None)
+    session_token: Optional[str] = Cookie(None),
+    token: Optional[str] = None  # Allow token in query param for downloads
 ):
     """Download output file"""
-    user = await get_current_user(session_token=session_token)
+    # Try query param token first, then cookie
+    auth_token = token or session_token
+    user = await get_current_user(session_token=auth_token)
     
     # Verify job belongs to user
     job = await db.jobs.find_one({"job_id": job_id, "user_id": user.user_id}, {"_id": 0})
@@ -601,7 +604,15 @@ async def download_output(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
     
-    return FileResponse(file_path, filename=filename)
+    # Set proper headers for download
+    return FileResponse(
+        file_path, 
+        filename=filename,
+        media_type='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"'
+        }
+    )
 
 # ============ SEED DATA ============
 
