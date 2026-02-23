@@ -65,15 +65,10 @@ export default function JobDetail() {
     }
   };
 
-  const handleDownload = (filename) => {
-    // Get session token from cookie
+  // Generate download URL for a file
+  const getDownloadUrl = (filename) => {
     const token = getCookie('session_token');
-    
-    // Build download URL with token as query param
-    const downloadUrl = `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-    
-    // Open in new window to trigger download
-    window.open(downloadUrl, '_blank');
+    return `${BACKEND_URL}/api/jobs/${jobId}/download/${encodeURIComponent(filename)}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   };
 
   const getStatusBadge = (status) => {
