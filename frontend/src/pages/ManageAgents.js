@@ -171,6 +171,12 @@ export default function ManageAgents() {
                           ? 'text-purple-600 bg-purple-50 border-purple-200'
                           : agent.tag === 'Marketing'
                           ? 'text-orange-600 bg-orange-50 border-orange-200'
+                          : agent.tag === 'HR'
+                          ? 'text-blue-600 bg-blue-50 border-blue-200'
+                          : agent.tag === 'Customer Support'
+                          ? 'text-teal-600 bg-teal-50 border-teal-200'
+                          : agent.tag === 'Revenue'
+                          ? 'text-green-600 bg-green-50 border-green-200'
                           : 'text-slate-600 bg-slate-50 border-slate-200'
                       }`}>
                         {agent.tag}
