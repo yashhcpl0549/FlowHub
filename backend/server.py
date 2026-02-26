@@ -640,6 +640,110 @@ async def download_output(
         }
     )
 
+
+# ============ CONVERSATIONAL ANALYTICS API ============
+
+# Initialize CA service (lazy initialization)
+_ca_service = None
+
+def get_ca_service():
+    """Get or create the Conversational Analytics service"""
+    global _ca_service
+    if _ca_service is None:
+        project_id = os.environ.get('GCP_PROJECT_ID', '')
+        credentials_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')
+        if not project_id:
+            raise HTTPException(status_code=500, detail="GCP_PROJECT_ID not configured")
+        _ca_service = ConversationalAnalyticsService(
+            project_id=project_id,
+            credentials_path=credentials_path if credentials_path else None
+        )
+    return _ca_service
+
+class SendMessageRequest(BaseModel):
+    message: str
+
+@api_router.get("/ca/agents")
+async def list_ca_agents(session_token: Optional[str] = Cookie(None)):
+    """List all BigQuery data agents"""
+    await get_current_user(session_token=session_token)
+    
+    try:
+        ca_service = get_ca_service()
+        agents = ca_service.list_agents()
+        return {"agents": agents}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing CA agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/ca/agents/{agent_name:path}/conversations")
+async def list_conversations(
+    agent_name: str,
+    session_token: Optional[str] = Cookie(None)
+):
+    """List conversations for a specific agent"""
+    await get_current_user(session_token=session_token)
+    
+    try:
+        ca_service = get_ca_service()
+        conversations = ca_service.list_conversations(agent_name)
+        return {"conversations": conversations}
+    except Exception as e:
+        logger.error(f"Error listing conversations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ca/agents/{agent_name:path}/conversations")
+async def create_conversation(
+    agent_name: str,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Create a new conversation with an agent"""
+    await get_current_user(session_token=session_token)
+    
+    try:
+        ca_service = get_ca_service()
+        conversation = ca_service.create_conversation(agent_name)
+        return conversation
+    except Exception as e:
+        logger.error(f"Error creating conversation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/ca/conversations/{conversation_name:path}/messages")
+async def get_messages(
+    conversation_name: str,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Get messages in a conversation"""
+    await get_current_user(session_token=session_token)
+    
+    try:
+        ca_service = get_ca_service()
+        messages = ca_service.get_messages(conversation_name)
+        return {"messages": messages}
+    except Exception as e:
+        logger.error(f"Error getting messages: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/ca/conversations/{conversation_name:path}/messages")
+async def send_message(
+    conversation_name: str,
+    request: SendMessageRequest,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Send a message in a conversation"""
+    await get_current_user(session_token=session_token)
+    
+    try:
+        ca_service = get_ca_service()
+        response = ca_service.send_message(conversation_name, request.message)
+        return response
+    except Exception as e:
+        logger.error(f"Error sending message: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============ SEED DATA ============
 
 @api_router.post("/seed-agents")
