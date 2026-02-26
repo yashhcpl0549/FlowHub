@@ -188,13 +188,26 @@ class ConversationalAnalyticsService:
     def send_message(self, conversation_name: str, message_text: str) -> dict:
         """Send a message in a conversation and get the response"""
         try:
+            # Get the agent from the conversation
+            convo = self.chat_client.get_conversation(name=conversation_name)
+            agent_name = convo.agents[0] if convo.agents else None
+            
+            if not agent_name:
+                raise ValueError("No agent associated with conversation")
+            
             # Create the user message
             message = geminidataanalytics.Message()
             message.user_message.text = message_text
             
+            # Create conversation reference with data agent context
+            conv_ref = geminidataanalytics.ConversationReference()
+            conv_ref.conversation = conversation_name
+            conv_ref.data_agent_context.data_agent = agent_name
+            
             # Create the chat request
             request = geminidataanalytics.ChatRequest(
-                parent=conversation_name,
+                parent=self.parent,
+                conversation_reference=conv_ref,
                 messages=[message]
             )
             
