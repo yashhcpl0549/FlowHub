@@ -41,17 +41,32 @@ def create_credentials_from_oauth_tokens(oauth_tokens: Dict[str, Any]) -> Option
 class ConversationalAnalyticsService:
     """Service for interacting with BigQuery Conversational Analytics API"""
     
-    def __init__(self, project_id: str, credentials_path: Optional[str] = None, oauth_tokens: Optional[Dict] = None):
+    def __init__(self, project_id: str, credentials_path: Optional[str] = None, user_credentials: Optional[Dict] = None):
         self.project_id = project_id
         self.parent = f"projects/{project_id}/locations/global"
         
         credentials = None
         
-        # Priority 1: Use OAuth tokens if provided (per-user dynamic credentials)
-        if oauth_tokens:
-            credentials = create_credentials_from_oauth_tokens(oauth_tokens)
-            if credentials:
-                logger.info("Using per-user OAuth credentials")
+        # Priority 1: Use user's stored credentials if provided (per-user)
+        if user_credentials:
+            cred_type = user_credentials.get('type', '')
+            
+            if cred_type == 'authorized_user':
+                credentials = UserCredentials(
+                    token=None,
+                    refresh_token=user_credentials.get('refresh_token'),
+                    client_id=user_credentials.get('client_id', GOOGLE_CLIENT_ID),
+                    client_secret=user_credentials.get('client_secret', GOOGLE_CLIENT_SECRET),
+                    token_uri='https://oauth2.googleapis.com/token'
+                )
+                logger.info("Using per-user authorized_user credentials")
+            elif cred_type == 'service_account':
+                # For service account, we need to create credentials from dict
+                credentials = service_account.Credentials.from_service_account_info(
+                    user_credentials,
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"]
+                )
+                logger.info("Using per-user service_account credentials")
         
         # Priority 2: Load credentials from file if path provided
         if not credentials and credentials_path and os.path.exists(credentials_path):
@@ -61,7 +76,6 @@ class ConversationalAnalyticsService:
             cred_type = cred_data.get('type', '')
             
             if cred_type == 'authorized_user':
-                # Handle ADC authorized_user credentials
                 credentials = UserCredentials(
                     token=None,
                     refresh_token=cred_data.get('refresh_token'),
@@ -71,7 +85,6 @@ class ConversationalAnalyticsService:
                 )
                 logger.info("Using authorized_user credentials from file")
             elif cred_type == 'service_account':
-                # Handle service account credentials
                 credentials = service_account.Credentials.from_service_account_file(
                     credentials_path,
                     scopes=["https://www.googleapis.com/auth/cloud-platform"]
