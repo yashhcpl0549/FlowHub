@@ -396,6 +396,28 @@ async def delete_agent(agent_id: str, session_token: Optional[str] = Cookie(None
     
     return {"message": "Agent deleted successfully"}
 
+
+# Admin: Update agent iframe URL
+@api_router.put("/admin/agents/{agent_id}/iframe-url")
+async def update_agent_iframe_url(
+    agent_id: str,
+    iframe_url: str,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Update agent's iframe URL (admin only)"""
+    await require_admin(session_token=session_token)
+    
+    result = await db.agents.update_one(
+        {"agent_id": agent_id},
+        {"$set": {"iframe_url": iframe_url}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    return {"message": "Iframe URL updated successfully"}
+
+
 @api_router.get("/agents", response_model=List[Agent])
 async def get_agents(session_token: Optional[str] = Cookie(None)):
     """Get all agents that user has access to"""
