@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import AgentDetail from './pages/AgentDetail';
+import IframeAgentPage from './pages/IframeAgentPage';
 import JobsList from './pages/JobsList';
 import JobDetail from './pages/JobDetail';
 import AdminDashboard from './pages/AdminDashboard';
@@ -24,6 +25,7 @@ function AppRouter() {
       <Route path="/" element={<Login />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/agent/:agentId" element={<AgentDetail />} />
+      <Route path="/chat/:agentId" element={<IframeAgentPage />} />
       <Route path="/jobs" element={<JobsList />} />
       <Route path="/jobs/:jobId" element={<JobDetail />} />
       <Route path="/admin" element={<AdminDashboard />} />
