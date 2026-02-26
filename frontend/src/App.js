@@ -11,6 +11,7 @@ import JobDetail from './pages/JobDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageUsers from './pages/ManageUsers';
 import ManageAgents from './pages/ManageAgents';
+import SettingsPage from './pages/SettingsPage';
 
 function AppRouter() {
   const location = useLocation();
@@ -31,6 +32,7 @@ function AppRouter() {
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/admin/users" element={<ManageUsers />} />
       <Route path="/admin/agents" element={<ManageAgents />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 }
