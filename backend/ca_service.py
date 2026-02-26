@@ -259,15 +259,22 @@ class ConversationalAnalyticsService:
             "suggestions": []
         }
         
+        # Extract text content
         if hasattr(sm, 'text') and sm.text:
-            content["text"] = sm.text
+            text_obj = sm.text
+            if hasattr(text_obj, 'parts') and text_obj.parts:
+                # Join all text parts
+                content["text"] = " ".join(text_obj.parts)
+            elif isinstance(text_obj, str):
+                content["text"] = text_obj
         
+        # Extract SQL from analysis
         if hasattr(sm, 'analysis') and sm.analysis:
             if hasattr(sm.analysis, 'sql') and sm.analysis.sql:
                 content["sql"] = sm.analysis.sql
         
+        # Extract table data
         if hasattr(sm, 'data') and sm.data:
-            # Extract table data
             data = sm.data
             if hasattr(data, 'rows') and data.rows:
                 columns = []
@@ -285,6 +292,7 @@ class ConversationalAnalyticsService:
                         "rows": rows
                     }
         
+        # Extract suggestions
         if hasattr(sm, 'example_queries') and sm.example_queries:
             content["suggestions"] = list(sm.example_queries)
         
