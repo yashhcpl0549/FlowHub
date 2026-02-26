@@ -265,6 +265,77 @@ async def logout(response: Response, session_token: Optional[str] = Cookie(None)
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}
 
+
+# ============ USER SETTINGS ROUTES ============
+
+class GCPCredentialsRequest(BaseModel):
+    credentials_json: str
+
+@api_router.get("/users/me")
+async def get_current_user_profile(session_token: Optional[str] = Cookie(None)):
+    """Get current user profile with settings"""
+    user = await get_current_user(session_token=session_token)
+    user_doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "gcp_credentials": 0})
+    
+    # Check if user has GCP credentials
+    has_creds = await db.users.find_one(
+        {"user_id": user.user_id, "gcp_credentials": {"$exists": True, "$ne": None}},
+        {"_id": 1}
+    )
+    
+    if user_doc:
+        user_doc["has_gcp_credentials"] = has_creds is not None
+    
+    return user_doc
+
+@api_router.post("/users/me/gcp-credentials")
+async def save_gcp_credentials(
+    request: GCPCredentialsRequest,
+    session_token: Optional[str] = Cookie(None)
+):
+    """Save user's GCP credentials"""
+    user = await get_current_user(session_token=session_token)
+    
+    # Validate the JSON
+    try:
+        creds = json.loads(request.credentials_json)
+        
+        # Must be authorized_user or service_account
+        cred_type = creds.get('type', '')
+        if cred_type == 'authorized_user':
+            if not creds.get('refresh_token'):
+                raise ValueError("Missing refresh_token in authorized_user credentials")
+        elif cred_type == 'service_account':
+            if not creds.get('private_key'):
+                raise ValueError("Missing private_key in service_account credentials")
+        else:
+            raise ValueError("Credentials must be authorized_user or service_account type")
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Store credentials (encrypted in production, but for now just store)
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"gcp_credentials": creds}}
+    )
+    
+    return {"message": "Credentials saved successfully"}
+
+@api_router.delete("/users/me/gcp-credentials")
+async def delete_gcp_credentials(session_token: Optional[str] = Cookie(None)):
+    """Delete user's GCP credentials"""
+    user = await get_current_user(session_token=session_token)
+    
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$unset": {"gcp_credentials": ""}}
+    )
+    
+    return {"message": "Credentials removed successfully"}
+
 # ============ AGENT ROUTES ============
 
 # Admin middleware
