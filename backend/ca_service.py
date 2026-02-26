@@ -294,6 +294,13 @@ class ConversationalAnalyticsService:
         
         # Extract suggestions
         if hasattr(sm, 'example_queries') and sm.example_queries:
-            content["suggestions"] = list(sm.example_queries)
+            eq = sm.example_queries
+            if hasattr(eq, 'queries') and eq.queries:
+                content["suggestions"] = list(eq.queries)
+            elif hasattr(eq, '__iter__'):
+                try:
+                    content["suggestions"] = list(eq)
+                except TypeError:
+                    pass
         
         return content
