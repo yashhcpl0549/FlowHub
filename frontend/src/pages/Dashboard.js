@@ -138,58 +138,80 @@ export default function Dashboard() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {agents.map((agent, index) => (
-              <Link
-                key={agent.agent_id}
-                to={`/agent/${agent.agent_id}`}
-                data-testid={`agent-card-${index}`}
-                className="agent-card bg-white rounded-lg border border-slate-200 p-6 hover:shadow-lg block"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <Zap className="w-6 h-6 text-blue-600" strokeWidth={1.5} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {agent.tag && (
-                      <span className={`text-xs font-medium px-2 py-1 rounded-md border ${
-                        agent.tag === 'Finance' 
-                          ? 'text-purple-600 bg-purple-50 border-purple-200'
-                          : agent.tag === 'Marketing'
-                          ? 'text-orange-600 bg-orange-50 border-orange-200'
-                          : agent.tag === 'HR'
-                          ? 'text-blue-600 bg-blue-50 border-blue-200'
-                          : agent.tag === 'Customer Support'
-                          ? 'text-teal-600 bg-teal-50 border-teal-200'
-                          : agent.tag === 'Revenue'
-                          ? 'text-green-600 bg-green-50 border-green-200'
-                          : 'text-slate-600 bg-slate-50 border-slate-200'
-                      }`}>
-                        {agent.tag}
+            {agents.map((agent, index) => {
+              const isIframeAgent = agent.agent_type === 'iframe';
+              const agentRoute = isIframeAgent ? `/chat/${agent.agent_id}` : `/agent/${agent.agent_id}`;
+              
+              return (
+                <Link
+                  key={agent.agent_id}
+                  to={agentRoute}
+                  data-testid={`agent-card-${index}`}
+                  className="agent-card bg-white rounded-lg border border-slate-200 p-6 hover:shadow-lg block"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      isIframeAgent ? 'bg-cyan-50' : 'bg-blue-50'
+                    }`}>
+                      {isIframeAgent ? (
+                        <MessageSquare className="w-6 h-6 text-cyan-600" strokeWidth={1.5} />
+                      ) : (
+                        <Zap className="w-6 h-6 text-blue-600" strokeWidth={1.5} />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {agent.tag && (
+                        <span className={`text-xs font-medium px-2 py-1 rounded-md border ${
+                          agent.tag === 'Finance' 
+                            ? 'text-purple-600 bg-purple-50 border-purple-200'
+                            : agent.tag === 'Marketing'
+                            ? 'text-orange-600 bg-orange-50 border-orange-200'
+                            : agent.tag === 'HR'
+                            ? 'text-blue-600 bg-blue-50 border-blue-200'
+                            : agent.tag === 'Customer Support'
+                            ? 'text-teal-600 bg-teal-50 border-teal-200'
+                            : agent.tag === 'Revenue'
+                            ? 'text-green-600 bg-green-50 border-green-200'
+                            : agent.tag === 'Analytics'
+                            ? 'text-cyan-600 bg-cyan-50 border-cyan-200'
+                            : 'text-slate-600 bg-slate-50 border-slate-200'
+                        }`}>
+                          {agent.tag}
+                        </span>
+                      )}
+                      <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                        Active
                       </span>
+                    </div>
+                  </div>
+                  <h4 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                    {agent.name}
+                  </h4>
+                  <p className="text-sm text-slate-600 leading-relaxed mb-4">
+                    {agent.description}
+                  </p>
+                  <div className="pt-4 border-t border-slate-100">
+                    {isIframeAgent ? (
+                      <div className="flex items-center gap-2 text-cyan-600">
+                        <MessageSquare className="w-4 h-4" />
+                        <span className="text-sm font-medium">Open Chat Interface</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs text-slate-500 mb-2">Required Files:</div>
+                        <div className="flex flex-wrap gap-2">
+                          {agent.required_files.map((file, idx) => (
+                            <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
+                              {file}
+                            </span>
+                          ))}
+                        </div>
+                      </>
                     )}
-                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
-                      Active
-                    </span>
                   </div>
-                </div>
-                <h4 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                  {agent.name}
-                </h4>
-                <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                  {agent.description}
-                </p>
-                <div className="pt-4 border-t border-slate-100">
-                  <div className="text-xs text-slate-500 mb-2">Required Files:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {agent.required_files.map((file, idx) => (
-                      <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                        {file}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
