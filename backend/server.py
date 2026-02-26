@@ -748,16 +748,25 @@ async def get_ca_service_for_user(session_token: str):
     if not project_id:
         raise HTTPException(status_code=500, detail="GCP_PROJECT_ID not configured")
     
-    # Try to get user's OAuth tokens from database
-    user_doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "oauth_tokens": 1})
-    oauth_tokens = user_doc.get("oauth_tokens") if user_doc else None
+    # Try to get user's stored GCP credentials from database
+    user_doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "gcp_credentials": 1})
+    user_gcp_creds = user_doc.get("gcp_credentials") if user_doc else None
     
     # Create service with per-user credentials if available
-    return ConversationalAnalyticsService(
-        project_id=project_id,
-        credentials_path=credentials_path if credentials_path else None,
-        oauth_tokens=oauth_tokens
-    )
+    if user_gcp_creds:
+        logger.info(f"Using per-user GCP credentials for {user.email}")
+        return ConversationalAnalyticsService(
+            project_id=project_id,
+            credentials_path=None,
+            user_credentials=user_gcp_creds
+        )
+    else:
+        # Fall back to shared credentials
+        return ConversationalAnalyticsService(
+            project_id=project_id,
+            credentials_path=credentials_path if credentials_path else None,
+            user_credentials=None
+        )
 
 @api_router.get("/ca/agents")
 async def list_ca_agents(session_token: Optional[str] = Cookie(None)):
