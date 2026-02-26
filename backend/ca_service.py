@@ -1,11 +1,12 @@
 """
 BigQuery Conversational Analytics Service
 Integrates with Google Cloud's Gemini Data Analytics API
+Supports per-user dynamic credentials via OAuth tokens
 """
 import os
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from google.cloud import geminidataanalytics
 from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
@@ -13,17 +14,47 @@ from google.oauth2.credentials import Credentials as UserCredentials
 
 logger = logging.getLogger(__name__)
 
+# Google OAuth client credentials (for token refresh)
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', 'd-FL95Q19q7MQmFpd7hHD0Ty')
+
+
+def create_credentials_from_oauth_tokens(oauth_tokens: Dict[str, Any]) -> Optional[UserCredentials]:
+    """Create GCP credentials from OAuth tokens"""
+    if not oauth_tokens:
+        return None
+    
+    try:
+        credentials = UserCredentials(
+            token=oauth_tokens.get('access_token'),
+            refresh_token=oauth_tokens.get('refresh_token'),
+            token_uri='https://oauth2.googleapis.com/token',
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET
+        )
+        return credentials
+    except Exception as e:
+        logger.error(f"Failed to create credentials from OAuth tokens: {e}")
+        return None
+
+
 class ConversationalAnalyticsService:
     """Service for interacting with BigQuery Conversational Analytics API"""
     
-    def __init__(self, project_id: str, credentials_path: Optional[str] = None):
+    def __init__(self, project_id: str, credentials_path: Optional[str] = None, oauth_tokens: Optional[Dict] = None):
         self.project_id = project_id
         self.parent = f"projects/{project_id}/locations/global"
         
         credentials = None
         
-        # Load credentials if path provided
-        if credentials_path and os.path.exists(credentials_path):
+        # Priority 1: Use OAuth tokens if provided (per-user dynamic credentials)
+        if oauth_tokens:
+            credentials = create_credentials_from_oauth_tokens(oauth_tokens)
+            if credentials:
+                logger.info("Using per-user OAuth credentials")
+        
+        # Priority 2: Load credentials from file if path provided
+        if not credentials and credentials_path and os.path.exists(credentials_path):
             with open(credentials_path, 'r') as f:
                 cred_data = json.load(f)
             
@@ -38,14 +69,14 @@ class ConversationalAnalyticsService:
                     client_secret=cred_data.get('client_secret'),
                     token_uri='https://oauth2.googleapis.com/token'
                 )
-                logger.info("Using authorized_user credentials")
+                logger.info("Using authorized_user credentials from file")
             elif cred_type == 'service_account':
                 # Handle service account credentials
                 credentials = service_account.Credentials.from_service_account_file(
                     credentials_path,
                     scopes=["https://www.googleapis.com/auth/cloud-platform"]
                 )
-                logger.info("Using service_account credentials")
+                logger.info("Using service_account credentials from file")
         
         # Initialize clients
         if credentials:
@@ -53,6 +84,7 @@ class ConversationalAnalyticsService:
             self.chat_client = geminidataanalytics.DataChatServiceClient(credentials=credentials)
         else:
             # Fall back to ADC
+            logger.info("Using Application Default Credentials")
             self.agent_client = geminidataanalytics.DataAgentServiceClient()
             self.chat_client = geminidataanalytics.DataChatServiceClient()
     
