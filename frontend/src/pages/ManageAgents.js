@@ -222,7 +222,19 @@ export default function ManageAgents() {
 
               {agent.agent_type === 'iframe' ? (
                 <div className="mb-4 pt-4 border-t border-slate-100">
-                  <div className="text-xs text-slate-500 mb-2">Iframe URL:</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-slate-500">Iframe URL:</div>
+                    <button
+                      onClick={() => {
+                        setEditingAgent(agent);
+                        setEditIframeUrl(agent.iframe_url || '');
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      Edit
+                    </button>
+                  </div>
                   <div className="text-xs font-mono text-slate-700 bg-slate-50 p-2 rounded break-all">
                     {agent.iframe_url || 'Not configured'}
                   </div>
