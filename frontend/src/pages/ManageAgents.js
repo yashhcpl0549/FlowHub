@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Plus, Trash2, FileText, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, FileText, Upload, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -11,6 +11,8 @@ export default function ManageAgents() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingAgent, setEditingAgent] = useState(null);
+  const [editIframeUrl, setEditIframeUrl] = useState('');
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
