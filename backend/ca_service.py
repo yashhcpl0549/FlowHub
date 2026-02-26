@@ -12,11 +12,45 @@ from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials as UserCredentials
 
+# Import proto collections for conversion
+try:
+    from proto.marshal.collections.maps import MapComposite
+    from proto.marshal.collections.repeated import RepeatedComposite
+except ImportError:
+    MapComposite = None
+    RepeatedComposite = None
+
 logger = logging.getLogger(__name__)
 
 # Google OAuth client credentials (for token refresh)
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '764086051850-6qr4p6gpi6hn506pt8ejuq83di341hur.apps.googleusercontent.com')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', 'd-FL95Q19q7MQmFpd7hHD0Ty')
+
+
+def proto_to_dict(obj):
+    """Recursively convert proto objects to dict for JSON serialization"""
+    if MapComposite and isinstance(obj, MapComposite):
+        return {key: proto_to_dict(obj[key]) for key in obj.keys()}
+    elif RepeatedComposite and isinstance(obj, RepeatedComposite):
+        return [proto_to_dict(item) for item in obj]
+    elif isinstance(obj, (list, tuple)):
+        return [proto_to_dict(item) for item in obj]
+    elif hasattr(obj, 'WhichOneof'):
+        # Protobuf Value type
+        kind = obj.WhichOneof('kind')
+        if kind == 'string_value':
+            return obj.string_value
+        elif kind == 'number_value':
+            return obj.number_value
+        elif kind == 'bool_value':
+            return obj.bool_value
+        elif kind == 'struct_value':
+            return proto_to_dict(obj.struct_value.fields)
+        elif kind == 'list_value':
+            return [proto_to_dict(v) for v in obj.list_value.values]
+        return None
+    else:
+        return obj
 
 
 def create_credentials_from_oauth_tokens(oauth_tokens: Dict[str, Any]) -> Optional[UserCredentials]:
