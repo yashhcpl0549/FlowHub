@@ -424,6 +424,57 @@ export default function ManageAgents() {
           </div>
         </div>
       )}
+
+      {/* Edit Iframe URL Modal */}
+      {editingAgent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full shadow-2xl fade-in">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                Configure Iframe URL
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Set the URL for the "{editingAgent.name}" chat agent
+              </p>
+            </div>
+
+            <div className="p-6">
+              <label className="block text-sm font-medium text-slate-900 mb-2">
+                Iframe URL
+              </label>
+              <input
+                type="url"
+                value={editIframeUrl}
+                onChange={(e) => setEditIframeUrl(e.target.value)}
+                placeholder="https://your-conversational-analytics-app.com"
+                className="w-full px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                Enter the URL of your deployed BigQuery Conversational Analytics app
+              </p>
+            </div>
+
+            <div className="p-6 border-t border-slate-200 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setEditingAgent(null);
+                  setEditIframeUrl('');
+                }}
+                type="button"
+                className="py-2 px-4 border border-slate-200 text-slate-700 rounded-md hover:bg-slate-50 transition-all font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateIframeUrl}
+                className="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all font-medium shadow-sm"
+              >
+                Save URL
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
