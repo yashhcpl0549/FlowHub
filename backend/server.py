@@ -70,6 +70,8 @@ class Agent(BaseModel):
     description: str
     required_files: List[str]
     tag: Optional[str] = None  # Category tag (e.g., "Finance", "Marketing")
+    agent_type: Optional[str] = None  # "iframe" for chat agents, None for file-based agents
+    iframe_url: Optional[str] = None  # URL to embed for iframe agents
     validation_script: Optional[str] = None  # Path to validation script
     main_script: Optional[str] = None  # Path to main processing script
     status: str = "active"
