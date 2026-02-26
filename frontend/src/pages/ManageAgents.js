@@ -112,6 +112,28 @@ export default function ManageAgents() {
     }
   };
 
+  const handleUpdateIframeUrl = async () => {
+    if (!editingAgent) return;
+    
+    try {
+      await axios.put(
+        `${BACKEND_URL}/api/admin/agents/${editingAgent.agent_id}/iframe-url`,
+        null,
+        {
+          withCredentials: true,
+          params: { iframe_url: editIframeUrl }
+        }
+      );
+      toast.success('Iframe URL updated successfully');
+      setEditingAgent(null);
+      setEditIframeUrl('');
+      loadAgents();
+    } catch (error) {
+      console.error('Failed to update iframe URL:', error);
+      toast.error('Failed to update iframe URL');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
