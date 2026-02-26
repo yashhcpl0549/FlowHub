@@ -165,19 +165,38 @@ async def create_session(request: SessionRequest, response: Response):
         
         data = auth_response.json()
         
+        # Log what we received (for debugging OAuth token availability)
+        logger.info(f"Auth response keys: {list(data.keys())}")
+        
         # Create or update user
         user_id = f"user_{uuid.uuid4().hex[:12]}"
         existing_user = await db.users.find_one({"email": data["email"]}, {"_id": 0})
         
+        # Extract OAuth tokens if available
+        oauth_tokens = None
+        if data.get("access_token"):
+            oauth_tokens = {
+                "access_token": data.get("access_token"),
+                "refresh_token": data.get("refresh_token"),
+                "id_token": data.get("id_token"),
+                "token_type": data.get("token_type", "Bearer"),
+                "expires_at": data.get("expires_at")
+            }
+            logger.info(f"OAuth tokens captured for user {data['email']}")
+        
         if existing_user:
             user_id = existing_user["user_id"]
-            # Update user info
+            # Update user info and OAuth tokens
+            update_data = {
+                "name": data["name"],
+                "picture": data["picture"]
+            }
+            if oauth_tokens:
+                update_data["oauth_tokens"] = oauth_tokens
+            
             await db.users.update_one(
                 {"user_id": user_id},
-                {"$set": {
-                    "name": data["name"],
-                    "picture": data["picture"]
-                }}
+                {"$set": update_data}
             )
         else:
             # Check if this should be an admin
@@ -192,15 +211,17 @@ async def create_session(request: SessionRequest, response: Response):
                 "picture": data["picture"],
                 "role": "admin" if is_admin else "user",
                 "agent_access": [],
+                "oauth_tokens": oauth_tokens,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             await db.users.insert_one(user_doc)
         
-        # Create session
+        # Create session with OAuth tokens reference
         session_token = data["session_token"]
         session_doc = {
             "user_id": user_id,
             "session_token": session_token,
+            "has_oauth_tokens": oauth_tokens is not None,
             "expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat()
         }
