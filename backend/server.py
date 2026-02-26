@@ -16,6 +16,7 @@ import httpx
 import shutil
 import subprocess
 from agent_executor import run_agent_script as execute_agent_script
+from ca_service import ConversationalAnalyticsService
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
