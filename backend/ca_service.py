@@ -101,21 +101,42 @@ class ConversationalAnalyticsService:
         try:
             request = geminidataanalytics.ListConversationsRequest(
                 parent=self.parent,
-                page_size=page_size,
             )
             
             convos = list(self.chat_client.list_conversations(request=request))
             # Filter by agent
             convos = [c for c in convos if agent_name in c.agents]
             
-            return [
-                {
+            result = []
+            for convo in convos:
+                # Try to get the first message as title
+                title = None
+                try:
+                    msgs_request = geminidataanalytics.ListMessagesRequest(parent=convo.name)
+                    msgs = list(self.chat_client.list_messages(request=msgs_request))
+                    # Find first user message (messages come in reverse order)
+                    for msg_wrapper in reversed(msgs):
+                        msg = msg_wrapper.message if hasattr(msg_wrapper, 'message') else msg_wrapper
+                        if hasattr(msg, 'user_message') and msg.user_message and msg.user_message.text:
+                            title = msg.user_message.text[:50]  # Truncate to 50 chars
+                            if len(msg.user_message.text) > 50:
+                                title += "..."
+                            break
+                except Exception as e:
+                    logger.debug(f"Could not fetch messages for conversation title: {e}")
+                
+                result.append({
                     "name": convo.name,
+                    "title": title,
                     "agents": list(convo.agents),
-                    "create_time": convo.create_time.isoformat() if hasattr(convo, 'create_time') and convo.create_time else None
-                }
-                for convo in convos
-            ]
+                    "create_time": convo.create_time.isoformat() if hasattr(convo, 'create_time') and convo.create_time else None,
+                    "last_used_time": convo.last_used_time.isoformat() if hasattr(convo, 'last_used_time') and convo.last_used_time else None
+                })
+            
+            # Sort by last_used_time (most recent first)
+            result.sort(key=lambda x: x.get('last_used_time') or x.get('create_time') or '', reverse=True)
+            
+            return result[:page_size]
         except google_exceptions.GoogleAPICallError as e:
             logger.error(f"API error fetching conversations: {e}")
             raise
