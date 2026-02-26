@@ -102,6 +102,14 @@ export default function Dashboard() {
                   Admin Panel
                 </Link>
               )}
+              <Link
+                to="/settings"
+                data-testid="settings-link"
+                className="text-slate-500 hover:text-slate-700 transition-colors p-2"
+                title="Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </Link>
               <div className="text-right">
                 <div className="text-sm font-medium text-slate-900">{user?.name}</div>
                 <div className="text-xs text-slate-500">{user?.email}</div>
