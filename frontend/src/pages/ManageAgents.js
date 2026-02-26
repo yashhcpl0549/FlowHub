@@ -177,9 +177,16 @@ export default function ManageAgents() {
                           ? 'text-teal-600 bg-teal-50 border-teal-200'
                           : agent.tag === 'Revenue'
                           ? 'text-green-600 bg-green-50 border-green-200'
+                          : agent.tag === 'Analytics'
+                          ? 'text-cyan-600 bg-cyan-50 border-cyan-200'
                           : 'text-slate-600 bg-slate-50 border-slate-200'
                       }`}>
                         {agent.tag}
+                      </span>
+                    )}
+                    {agent.agent_type === 'iframe' && (
+                      <span className="text-xs font-medium px-2 py-1 rounded-md border text-cyan-600 bg-cyan-50 border-cyan-200">
+                        Chat
                       </span>
                     )}
                   </div>
@@ -189,16 +196,25 @@ export default function ManageAgents() {
                 </div>
               </div>
 
-              <div className="mb-4 pt-4 border-t border-slate-100">
-                <div className="text-xs text-slate-500 mb-2">Required Files:</div>
-                <div className="flex flex-wrap gap-2">
-                  {agent.required_files.map((file, idx) => (
-                    <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                      {file}
-                    </span>
-                  ))}
+              {agent.agent_type === 'iframe' ? (
+                <div className="mb-4 pt-4 border-t border-slate-100">
+                  <div className="text-xs text-slate-500 mb-2">Iframe URL:</div>
+                  <div className="text-xs font-mono text-slate-700 bg-slate-50 p-2 rounded break-all">
+                    {agent.iframe_url || 'Not configured'}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-4 pt-4 border-t border-slate-100">
+                  <div className="text-xs text-slate-500 mb-2">Required Files:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {agent.required_files.map((file, idx) => (
+                      <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
+                        {file}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
                 {agent.validation_script && (
