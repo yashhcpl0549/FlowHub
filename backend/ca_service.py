@@ -3,11 +3,13 @@ BigQuery Conversational Analytics Service
 Integrates with Google Cloud's Gemini Data Analytics API
 """
 import os
+import json
 import logging
 from typing import List, Optional
 from google.cloud import geminidataanalytics
 from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials as UserCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -18,17 +20,39 @@ class ConversationalAnalyticsService:
         self.project_id = project_id
         self.parent = f"projects/{project_id}/locations/global"
         
-        # Initialize clients
-        # Use service account credentials if provided, otherwise ADC
+        credentials = None
+        
+        # Load credentials if path provided
         if credentials_path and os.path.exists(credentials_path):
-            credentials = service_account.Credentials.from_service_account_file(
-                credentials_path,
-                scopes=["https://www.googleapis.com/auth/cloud-platform"]
-            )
+            with open(credentials_path, 'r') as f:
+                cred_data = json.load(f)
+            
+            cred_type = cred_data.get('type', '')
+            
+            if cred_type == 'authorized_user':
+                # Handle ADC authorized_user credentials
+                credentials = UserCredentials(
+                    token=None,
+                    refresh_token=cred_data.get('refresh_token'),
+                    client_id=cred_data.get('client_id'),
+                    client_secret=cred_data.get('client_secret'),
+                    token_uri='https://oauth2.googleapis.com/token'
+                )
+                logger.info("Using authorized_user credentials")
+            elif cred_type == 'service_account':
+                # Handle service account credentials
+                credentials = service_account.Credentials.from_service_account_file(
+                    credentials_path,
+                    scopes=["https://www.googleapis.com/auth/cloud-platform"]
+                )
+                logger.info("Using service_account credentials")
+        
+        # Initialize clients
+        if credentials:
             self.agent_client = geminidataanalytics.DataAgentServiceClient(credentials=credentials)
             self.chat_client = geminidataanalytics.DataChatServiceClient(credentials=credentials)
         else:
-            # Use Application Default Credentials
+            # Fall back to ADC
             self.agent_client = geminidataanalytics.DataAgentServiceClient()
             self.chat_client = geminidataanalytics.DataChatServiceClient()
     
