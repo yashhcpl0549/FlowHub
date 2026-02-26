@@ -156,13 +156,25 @@ class ConversationalAnalyticsService:
             
             messages = []
             for msg_wrapper in msgs:
-                msg = msg_wrapper.message
-                messages.append({
-                    "name": msg_wrapper.name if hasattr(msg_wrapper, 'name') else None,
-                    "author": msg.author if hasattr(msg, 'author') else 'unknown',
-                    "content": self._extract_message_content(msg),
-                    "create_time": msg.create_time.isoformat() if hasattr(msg, 'create_time') and msg.create_time else None
-                })
+                msg = msg_wrapper.message if hasattr(msg_wrapper, 'message') else msg_wrapper
+                
+                # Determine if it's user or system message
+                if hasattr(msg, 'user_message') and msg.user_message and msg.user_message.text:
+                    messages.append({
+                        "name": msg_wrapper.name if hasattr(msg_wrapper, 'name') else None,
+                        "author": "user",
+                        "content": {"text": msg.user_message.text},
+                        "create_time": msg.timestamp.isoformat() if hasattr(msg, 'timestamp') and msg.timestamp else None
+                    })
+                elif hasattr(msg, 'system_message') and msg.system_message:
+                    sm = msg.system_message
+                    content = self._extract_system_message_content(sm)
+                    messages.append({
+                        "name": msg_wrapper.name if hasattr(msg_wrapper, 'name') else None,
+                        "author": "assistant",
+                        "content": content,
+                        "create_time": msg.timestamp.isoformat() if hasattr(msg, 'timestamp') and msg.timestamp else None
+                    })
             
             # Return in chronological order (oldest first)
             return list(reversed(messages))
@@ -176,13 +188,94 @@ class ConversationalAnalyticsService:
     def send_message(self, conversation_name: str, message_text: str) -> dict:
         """Send a message in a conversation and get the response"""
         try:
-            # Create the message
+            # Create the user message
             message = geminidataanalytics.Message()
-            message.author = "user"
+            message.user_message.text = message_text
             
-            # Set the text content
-            text_content = geminidataanalytics.TextContent()
-            text_content.text = message_text
+            # Create the chat request
+            request = geminidataanalytics.ChatRequest(
+                parent=conversation_name,
+                messages=[message]
+            )
+            
+            # Send and get streamed response
+            response_stream = self.chat_client.chat(request=request)
+            
+            # Collect all response messages
+            responses = []
+            for response_msg in response_stream:
+                if hasattr(response_msg, 'system_message') and response_msg.system_message:
+                    content = self._extract_system_message_content(response_msg.system_message)
+                    responses.append(content)
+            
+            # Merge all response content
+            merged_response = {
+                "text": None,
+                "sql": None,
+                "table": None,
+                "suggestions": []
+            }
+            
+            for resp in responses:
+                if resp.get("text"):
+                    merged_response["text"] = (merged_response["text"] or "") + resp["text"]
+                if resp.get("sql"):
+                    merged_response["sql"] = resp["sql"]
+                if resp.get("table"):
+                    merged_response["table"] = resp["table"]
+                if resp.get("suggestions"):
+                    merged_response["suggestions"].extend(resp["suggestions"])
+            
+            return {
+                "name": None,
+                "response": merged_response
+            }
+        except google_exceptions.GoogleAPICallError as e:
+            logger.error(f"API error sending message: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error sending message: {e}")
+            raise
+    
+    def _extract_system_message_content(self, sm) -> dict:
+        """Extract content from a system message"""
+        content = {
+            "text": None,
+            "sql": None,
+            "table": None,
+            "suggestions": []
+        }
+        
+        if hasattr(sm, 'text') and sm.text:
+            content["text"] = sm.text
+        
+        if hasattr(sm, 'analysis') and sm.analysis:
+            if hasattr(sm.analysis, 'sql') and sm.analysis.sql:
+                content["sql"] = sm.analysis.sql
+        
+        if hasattr(sm, 'data') and sm.data:
+            # Extract table data
+            data = sm.data
+            if hasattr(data, 'rows') and data.rows:
+                columns = []
+                if hasattr(data, 'schema') and data.schema and hasattr(data.schema, 'fields'):
+                    columns = [f.name for f in data.schema.fields]
+                
+                rows = []
+                for row in data.rows:
+                    if hasattr(row, 'values'):
+                        rows.append([str(v) for v in row.values])
+                
+                if rows:
+                    content["table"] = {
+                        "columns": columns,
+                        "rows": rows
+                    }
+        
+        if hasattr(sm, 'example_queries') and sm.example_queries:
+            content["suggestions"] = list(sm.example_queries)
+        
+        return content
             message.text = text_content
             
             request = geminidataanalytics.CreateMessageRequest(
