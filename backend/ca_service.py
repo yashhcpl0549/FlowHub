@@ -356,6 +356,7 @@ class ConversationalAnalyticsService:
             "text": None,
             "sql": None,
             "table": None,
+            "chart": None,
             "suggestions": []
         }
         
@@ -373,6 +374,19 @@ class ConversationalAnalyticsService:
             if hasattr(sm.analysis, 'sql') and sm.analysis.sql:
                 content["sql"] = sm.analysis.sql
         
+        # Extract chart (Vega-Lite spec)
+        if hasattr(sm, 'chart') and sm.chart:
+            chart = sm.chart
+            if hasattr(chart, 'result') and chart.result:
+                result = chart.result
+                if hasattr(result, 'vega_config') and result.vega_config:
+                    try:
+                        vega_spec = proto_to_dict(result.vega_config)
+                        if vega_spec:
+                            content["chart"] = vega_spec
+                    except Exception as e:
+                        logger.error(f"Failed to convert vega_config: {e}")
+        
         # Extract table data
         if hasattr(sm, 'data') and sm.data:
             data = sm.data
@@ -384,7 +398,10 @@ class ConversationalAnalyticsService:
                 rows = []
                 for row in data.rows:
                     if hasattr(row, 'values'):
-                        rows.append([str(v) for v in row.values])
+                        row_data = []
+                        for val in row.values:
+                            row_data.append(proto_to_dict(val) if hasattr(val, 'WhichOneof') else str(val))
+                        rows.append(row_data)
                 
                 if rows:
                     content["table"] = {
