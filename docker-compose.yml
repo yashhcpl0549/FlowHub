@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: honasa-backend
+    restart: unless-stopped
+    environment:
+      - MONGO_URL=${MONGO_URL:-mongodb://mongodb:27017}
+      - DB_NAME=${DB_NAME:-honasa_taskforce}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - SENDER_EMAIL=${SENDER_EMAIL:-onboarding@resend.dev}
+      - GCS_BUCKET=${GCS_BUCKET:-}
+      - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH:-}
+      - MAX_CONCURRENT_AGENTS=${MAX_CONCURRENT_AGENTS:-10}
+    volumes:
+      - uploads_data:/app/uploads
+      - outputs_data:/app/outputs
+      - scripts_data:/app/scripts
+    networks:
+      - honasa-network
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL:-http://localhost}
+    container_name: honasa-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - honasa-network
+    depends_on:
+      - backend
+
+  mongodb:
+    image: mongo:7.0
+    container_name: honasa-mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=${DB_NAME:-honasa_taskforce}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - honasa-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  honasa-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  uploads_data:
+  outputs_data:
+  scripts_data:

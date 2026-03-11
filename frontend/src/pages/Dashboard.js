@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Play, Zap, Clock, CheckCircle2, MessageSquare, Settings } from 'lucide-react';
+import { Play, Zap, Clock, CheckCircle2 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -102,14 +102,7 @@ export default function Dashboard() {
                   Admin Panel
                 </Link>
               )}
-              <Link
-                to="/settings"
-                data-testid="settings-link"
-                className="text-slate-500 hover:text-slate-700 transition-colors p-2"
-                title="Settings"
-              >
-                <Settings className="w-5 h-5" />
-              </Link>
+              {/* Admin link */}
               <div className="text-right">
                 <div className="text-sm font-medium text-slate-900">{user?.name}</div>
                 <div className="text-xs text-slate-500">{user?.email}</div>
@@ -147,25 +140,16 @@ export default function Dashboard() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {agents.map((agent, index) => {
-              const isIframeAgent = agent.agent_type === 'iframe';
-              const agentRoute = isIframeAgent ? `/chat/${agent.agent_id}` : `/agent/${agent.agent_id}`;
-              
               return (
                 <Link
                   key={agent.agent_id}
-                  to={agentRoute}
+                  to={`/agent/${agent.agent_id}`}
                   data-testid={`agent-card-${index}`}
                   className="agent-card bg-white rounded-lg border border-slate-200 p-6 hover:shadow-lg block"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      isIframeAgent ? 'bg-cyan-50' : 'bg-blue-50'
-                    }`}>
-                      {isIframeAgent ? (
-                        <MessageSquare className="w-6 h-6 text-cyan-600" strokeWidth={1.5} />
-                      ) : (
-                        <Zap className="w-6 h-6 text-blue-600" strokeWidth={1.5} />
-                      )}
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-blue-50">
+                      <Zap className="w-6 h-6 text-blue-600" strokeWidth={1.5} />
                     </div>
                     <div className="flex items-center gap-2">
                       {agent.tag && (
@@ -199,23 +183,14 @@ export default function Dashboard() {
                     {agent.description}
                   </p>
                   <div className="pt-4 border-t border-slate-100">
-                    {isIframeAgent ? (
-                      <div className="flex items-center gap-2 text-cyan-600">
-                        <MessageSquare className="w-4 h-4" />
-                        <span className="text-sm font-medium">Open Chat Interface</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-xs text-slate-500 mb-2">Required Files:</div>
-                        <div className="flex flex-wrap gap-2">
-                          {agent.required_files.map((file, idx) => (
-                            <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
-                              {file}
-                            </span>
-                          ))}
-                        </div>
-                      </>
-                    )}
+                    <div className="text-xs text-slate-500 mb-2">Required Files:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {agent.required_files.map((file, idx) => (
+                        <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
+                          {file}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </Link>
               );

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Cookie, Response, BackgroundTasks, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -17,7 +17,6 @@ import httpx
 import shutil
 import subprocess
 from agent_executor import run_agent_script as execute_agent_script
-from ca_service import ConversationalAnalyticsService
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -33,14 +32,42 @@ SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
 
-# File storage
+# File storage configuration
 UPLOADS_DIR = ROOT_DIR / 'uploads'
 OUTPUTS_DIR = ROOT_DIR / 'outputs'
 UPLOADS_DIR.mkdir(exist_ok=True)
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
+# GCS configuration (optional - for production)
+GCS_BUCKET = os.environ.get('GCS_BUCKET', '')
+GCS_CREDENTIALS_PATH = os.environ.get('GCS_CREDENTIALS_PATH', '')
+
+# Agent execution limits
+MAX_CONCURRENT_AGENTS = int(os.environ.get('MAX_CONCURRENT_AGENTS', '10'))
+
+# Track active jobs for queue management
+active_jobs_lock = asyncio.Lock()
+active_jobs_count = 0
+
+# Initialize GCS client if configured
+gcs_client = None
+gcs_bucket = None
+if GCS_BUCKET:
+    try:
+        from google.cloud import storage
+        if GCS_CREDENTIALS_PATH and os.path.exists(GCS_CREDENTIALS_PATH):
+            gcs_client = storage.Client.from_service_account_json(GCS_CREDENTIALS_PATH)
+        else:
+            gcs_client = storage.Client()
+        gcs_bucket = gcs_client.bucket(GCS_BUCKET)
+        logging.info(f"GCS configured with bucket: {GCS_BUCKET}")
+    except Exception as e:
+        logging.warning(f"GCS not available: {e}. Using local storage.")
+        gcs_client = None
+        gcs_bucket = None
+
 # Create the main app
-app = FastAPI()
+app = FastAPI(title="Honasa Task Force API", version="1.0.0")
 api_router = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO)
@@ -267,75 +294,12 @@ async def logout(response: Response, session_token: Optional[str] = Cookie(None)
     return {"message": "Logged out successfully"}
 
 
-# ============ USER SETTINGS ROUTES ============
-
-class GCPCredentialsRequest(BaseModel):
-    credentials_json: str
-
 @api_router.get("/users/me")
 async def get_current_user_profile(session_token: Optional[str] = Cookie(None)):
-    """Get current user profile with settings"""
+    """Get current user profile"""
     user = await get_current_user(session_token=session_token)
-    user_doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "gcp_credentials": 0})
-    
-    # Check if user has GCP credentials
-    has_creds = await db.users.find_one(
-        {"user_id": user.user_id, "gcp_credentials": {"$exists": True, "$ne": None}},
-        {"_id": 1}
-    )
-    
-    if user_doc:
-        user_doc["has_gcp_credentials"] = has_creds is not None
-    
+    user_doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0})
     return user_doc
-
-@api_router.post("/users/me/gcp-credentials")
-async def save_gcp_credentials(
-    request: GCPCredentialsRequest,
-    session_token: Optional[str] = Cookie(None)
-):
-    """Save user's GCP credentials"""
-    user = await get_current_user(session_token=session_token)
-    
-    # Validate the JSON
-    try:
-        creds = json.loads(request.credentials_json)
-        
-        # Must be authorized_user or service_account
-        cred_type = creds.get('type', '')
-        if cred_type == 'authorized_user':
-            if not creds.get('refresh_token'):
-                raise ValueError("Missing refresh_token in authorized_user credentials")
-        elif cred_type == 'service_account':
-            if not creds.get('private_key'):
-                raise ValueError("Missing private_key in service_account credentials")
-        else:
-            raise ValueError("Credentials must be authorized_user or service_account type")
-        
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
-    # Store credentials (encrypted in production, but for now just store)
-    await db.users.update_one(
-        {"user_id": user.user_id},
-        {"$set": {"gcp_credentials": creds}}
-    )
-    
-    return {"message": "Credentials saved successfully"}
-
-@api_router.delete("/users/me/gcp-credentials")
-async def delete_gcp_credentials(session_token: Optional[str] = Cookie(None)):
-    """Delete user's GCP credentials"""
-    user = await get_current_user(session_token=session_token)
-    
-    await db.users.update_one(
-        {"user_id": user.user_id},
-        {"$unset": {"gcp_credentials": ""}}
-    )
-    
-    return {"message": "Credentials removed successfully"}
 
 # ============ AGENT ROUTES ============
 
@@ -556,7 +520,7 @@ async def upload_files(
     files: List[UploadFile] = File(...),
     session_token: Optional[str] = Cookie(None)
 ):
-    """Upload input files for an agent - stores locally"""
+    """Upload input files for an agent - supports local and GCS storage"""
     user = await get_current_user(session_token=session_token)
     
     # Verify agent exists
@@ -571,14 +535,30 @@ async def upload_files(
     
     uploaded_files = []
     file_metadata = []
+    storage_type = "gcs" if gcs_bucket else "local"
     
     for idx, file in enumerate(files):
         file_id = f"file_{uuid.uuid4().hex[:8]}"
         file_path = job_dir / file.filename
         
-        # Save file locally
+        # Read file content
+        file_content = await file.read()
+        
+        # Save file locally (always needed for processing)
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file_content)
+        
+        gcs_path = None
+        if gcs_bucket:
+            # Upload to GCS
+            try:
+                gcs_path = f"uploads/{job_id}/{file.filename}"
+                blob = gcs_bucket.blob(gcs_path)
+                blob.upload_from_string(file_content, content_type=file.content_type or "application/octet-stream")
+                logger.info(f"Uploaded {file.filename} to GCS: {gcs_path}")
+            except Exception as e:
+                logger.error(f"GCS upload failed: {e}")
+                gcs_path = None
         
         # Store file info
         file_doc = {
@@ -587,18 +567,20 @@ async def upload_files(
             "user_id": user.user_id,
             "file_name": file.filename,
             "file_path": str(file_path),
+            "gcs_path": gcs_path,
             "file_type": file.content_type or "application/octet-stream",
-            "storage_type": "local",
+            "storage_type": storage_type if gcs_path else "local",
             "uploaded_at": datetime.now(timezone.utc).isoformat()
         }
         await db.files.insert_one(file_doc)
         uploaded_files.append(file.filename)
         file_metadata.append({
             "filename": file.filename,
-            "local_path": str(file_path)
+            "local_path": str(file_path),
+            "gcs_path": gcs_path
         })
     
-    logger.info(f"Uploaded {len(files)} files to local storage for job {job_id}")
+    logger.info(f"Uploaded {len(files)} files ({storage_type}) for job {job_id}")
     
     # Create job record
     job_doc = {
@@ -610,6 +592,7 @@ async def upload_files(
         "file_metadata": file_metadata,
         "output_files": [],
         "error_message": None,
+        "storage_type": storage_type,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
@@ -618,29 +601,37 @@ async def upload_files(
     return {
         "job_id": job_id,
         "uploaded_files": uploaded_files,
-        "storage_type": "local"
+        "storage_type": storage_type
     }
 
-async def run_agent_script(job_id: str, agent_id: str, user_email: str):
-    """Wrapper for agent script execution"""
-    agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
-    await execute_agent_script(
-        job_id=job_id,
-        agent_id=agent_id,
-        user_email=user_email,
-        db=db,
-        agent=agent,
-        ROOT_DIR=ROOT_DIR,
-        OUTPUTS_DIR=OUTPUTS_DIR,
-        RESEND_API_KEY=RESEND_API_KEY,
-        SENDER_EMAIL=SENDER_EMAIL,
-        resend_module=resend
-    )
+async def run_agent_script_with_queue(job_id: str, agent_id: str, user_email: str):
+    """Wrapper for agent script execution with queue management"""
+    global active_jobs_count
+    
+    async with active_jobs_lock:
+        active_jobs_count += 1
+    
+    try:
+        agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
+        await execute_agent_script(
+            job_id=job_id,
+            agent_id=agent_id,
+            user_email=user_email,
+            db=db,
+            agent=agent,
+            ROOT_DIR=ROOT_DIR,
+            OUTPUTS_DIR=OUTPUTS_DIR,
+            RESEND_API_KEY=RESEND_API_KEY,
+            SENDER_EMAIL=SENDER_EMAIL,
+            resend_module=resend,
+            gcs_bucket=gcs_bucket
+        )
+    finally:
+        async with active_jobs_lock:
+            active_jobs_count -= 1
 
 class ExecuteRequest(BaseModel):
     job_id: str
-
-# ... existing models ...
 
 @api_router.post("/agents/{agent_id}/execute")
 async def execute_agent(
@@ -649,7 +640,9 @@ async def execute_agent(
     background_tasks: BackgroundTasks,
     session_token: Optional[str] = Cookie(None)
 ):
-    """Execute agent script"""
+    """Execute agent script with queue management"""
+    global active_jobs_count
+    
     user = await get_current_user(session_token=session_token)
     
     # Verify job exists and belongs to user
@@ -660,10 +653,43 @@ async def execute_agent(
     if job["status"] != "pending":
         raise HTTPException(status_code=400, detail="Job already processed")
     
+    # Check queue limit
+    async with active_jobs_lock:
+        if active_jobs_count >= MAX_CONCURRENT_AGENTS:
+            # Add to queue instead of rejecting
+            await db.jobs.update_one(
+                {"job_id": request.job_id},
+                {"$set": {"status": "queued", "updated_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            queue_position = await db.jobs.count_documents({"status": "queued"})
+            return {
+                "message": "Job queued - maximum concurrent agents reached",
+                "job_id": request.job_id,
+                "status": "queued",
+                "queue_position": queue_position
+            }
+    
     # Start background task
-    background_tasks.add_task(run_agent_script, request.job_id, agent_id, user.email)
+    background_tasks.add_task(run_agent_script_with_queue, request.job_id, agent_id, user.email)
     
     return {"message": "Job execution started", "job_id": request.job_id}
+
+@api_router.get("/queue/status")
+async def get_queue_status(session_token: Optional[str] = Cookie(None)):
+    """Get current queue status"""
+    await get_current_user(session_token=session_token)
+    
+    async with active_jobs_lock:
+        current_active = active_jobs_count
+    
+    queued_count = await db.jobs.count_documents({"status": "queued"})
+    
+    return {
+        "active_jobs": current_active,
+        "max_concurrent": MAX_CONCURRENT_AGENTS,
+        "queued_jobs": queued_count,
+        "available_slots": max(0, MAX_CONCURRENT_AGENTS - current_active)
+    }
 
 @api_router.get("/jobs", response_model=List[Job])
 async def get_jobs(session_token: Optional[str] = Cookie(None)):
@@ -705,7 +731,7 @@ async def download_output(
     session_token: Optional[str] = Cookie(None),
     token: Optional[str] = None  # Allow token in query param for downloads
 ):
-    """Download output file"""
+    """Download output file - supports local and GCS storage"""
     # Try query param token first, then cookie
     auth_token = token or session_token
     user = await get_current_user(session_token=auth_token)
@@ -719,125 +745,44 @@ async def download_output(
     if filename not in job.get("output_files", []):
         raise HTTPException(status_code=404, detail="File not found")
     
+    # Try local file first
     file_path = OUTPUTS_DIR / job_id / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found on disk")
     
-    # Set proper headers for download
-    return FileResponse(
-        file_path, 
-        filename=filename,
-        media_type='application/octet-stream',
-        headers={
-            'Content-Disposition': f'attachment; filename="{filename}"'
-        }
-    )
-
-
-# ============ CONVERSATIONAL ANALYTICS API ============
-
-class SendMessageRequest(BaseModel):
-    message: str
-
-async def get_ca_service_for_user(session_token: str):
-    """Get CA service with user-specific credentials if available"""
-    user = await get_current_user(session_token=session_token)
-    
-    project_id = os.environ.get('GCP_PROJECT_ID', '')
-    credentials_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')
-    
-    if not project_id:
-        raise HTTPException(status_code=500, detail="GCP_PROJECT_ID not configured")
-    
-    # Try to get user's stored GCP credentials from database
-    user_doc = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "gcp_credentials": 1})
-    user_gcp_creds = user_doc.get("gcp_credentials") if user_doc else None
-    
-    # Create service with per-user credentials if available
-    if user_gcp_creds:
-        logger.info(f"Using per-user GCP credentials for {user.email}")
-        return ConversationalAnalyticsService(
-            project_id=project_id,
-            credentials_path=None,
-            user_credentials=user_gcp_creds
+    if file_path.exists():
+        # Read file and return as streaming response for better download compatibility
+        def iterfile():
+            with open(file_path, 'rb') as f:
+                while chunk := f.read(8192):
+                    yield chunk
+        
+        return StreamingResponse(
+            iterfile(),
+            media_type='application/octet-stream',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(file_path.stat().st_size)
+            }
         )
-    else:
-        # Fall back to shared credentials
-        return ConversationalAnalyticsService(
-            project_id=project_id,
-            credentials_path=credentials_path if credentials_path else None,
-            user_credentials=None
-        )
-
-@api_router.get("/ca/agents")
-async def list_ca_agents(session_token: Optional[str] = Cookie(None)):
-    """List all BigQuery data agents"""
-    try:
-        ca_service = await get_ca_service_for_user(session_token)
-        agents = ca_service.list_agents()
-        return {"agents": agents}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error listing CA agents: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.get("/ca/agents/{agent_name:path}/conversations")
-async def list_conversations(
-    agent_name: str,
-    session_token: Optional[str] = Cookie(None)
-):
-    """List conversations for a specific agent"""
-    try:
-        ca_service = await get_ca_service_for_user(session_token)
-        conversations = ca_service.list_conversations(agent_name)
-        return {"conversations": conversations}
-    except Exception as e:
-        logger.error(f"Error listing conversations: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.post("/ca/agents/{agent_name:path}/conversations")
-async def create_conversation(
-    agent_name: str,
-    session_token: Optional[str] = Cookie(None)
-):
-    """Create a new conversation with an agent"""
-    try:
-        ca_service = await get_ca_service_for_user(session_token)
-        conversation = ca_service.create_conversation(agent_name)
-        return conversation
-    except Exception as e:
-        logger.error(f"Error creating conversation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.get("/ca/conversations/{conversation_name:path}/messages")
-async def get_messages(
-    conversation_name: str,
-    session_token: Optional[str] = Cookie(None)
-):
-    """Get messages in a conversation"""
-    try:
-        ca_service = await get_ca_service_for_user(session_token)
-        messages = ca_service.get_messages(conversation_name)
-        return {"messages": messages}
-    except Exception as e:
-        logger.error(f"Error getting messages: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@api_router.post("/ca/conversations/{conversation_name:path}/messages")
-async def send_message(
-    conversation_name: str,
-    request: SendMessageRequest,
-    session_token: Optional[str] = Cookie(None)
-):
-    """Send a message in a conversation"""
-    try:
-        ca_service = await get_ca_service_for_user(session_token)
-        response = ca_service.send_message(conversation_name, request.message)
-        return response
-    except Exception as e:
-        logger.error(f"Error sending message: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Try GCS if local not found and GCS is configured
+    if gcs_bucket:
+        try:
+            gcs_path = f"outputs/{job_id}/{filename}"
+            blob = gcs_bucket.blob(gcs_path)
+            if blob.exists():
+                content = blob.download_as_bytes()
+                return StreamingResponse(
+                    iter([content]),
+                    media_type='application/octet-stream',
+                    headers={
+                        'Content-Disposition': f'attachment; filename="{filename}"',
+                        'Content-Length': str(len(content))
+                    }
+                )
+        except Exception as e:
+            logger.error(f"GCS download failed: {e}")
+    
+    raise HTTPException(status_code=404, detail="File not found on disk")
 
 
 # ============ SEED DATA ============

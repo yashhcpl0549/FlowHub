@@ -22,7 +22,7 @@
 
 1. **Open browser** and navigate to:
    ```
-   https://flowhub-preview.preview.emergentagent.com/dashboard
+   https://honasa-task-force.preview.emergentagent.com/dashboard
    ```
 
 2. **Open DevTools** (Press F12)

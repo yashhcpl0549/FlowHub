@@ -1,5 +1,5 @@
 """
-Agent script executor - Local storage only
+Agent script executor - Supports local and GCS storage
 """
 import asyncio
 import subprocess
@@ -23,7 +23,8 @@ async def run_agent_script(
     OUTPUTS_DIR: Path,
     RESEND_API_KEY: str,
     SENDER_EMAIL: str,
-    resend_module
+    resend_module,
+    gcs_bucket=None
 ):
     """Background task to run agent script with validation and main processing - Local storage only"""
     try:
@@ -155,10 +156,22 @@ async def run_agent_script(
             
             logger.info(f"Main script completed for job {job_id}")
             
-            # List output files (local only)
+            # List output files
             output_files = []
             if job_output_dir.exists():
                 output_files = [f.name for f in job_output_dir.iterdir() if f.is_file()]
+                
+                # Upload to GCS if configured
+                if gcs_bucket and output_files:
+                    for output_file in output_files:
+                        try:
+                            local_path = job_output_dir / output_file
+                            gcs_path = f"outputs/{job_id}/{output_file}"
+                            blob = gcs_bucket.blob(gcs_path)
+                            blob.upload_from_filename(str(local_path))
+                            logger.info(f"Uploaded output {output_file} to GCS")
+                        except Exception as e:
+                            logger.error(f"Failed to upload {output_file} to GCS: {e}")
         
         else:
             # No scripts provided - use mock processing

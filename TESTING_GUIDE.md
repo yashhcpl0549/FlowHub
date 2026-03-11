@@ -149,7 +149,7 @@ Expected: User data JSON with `role: "admin"`
    - HttpOnly: ✓
    - Secure: ✓
    - SameSite: `None`
-4. Navigate to: `https://flowhub-preview.preview.emergentagent.com/dashboard`
+4. Navigate to: `https://honasa-task-force.preview.emergentagent.com/dashboard`
 
 **Should see:** Dashboard with "Admin Panel" button
 
