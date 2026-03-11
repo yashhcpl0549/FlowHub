@@ -16,10 +16,13 @@ services:
       - GCS_BUCKET=${GCS_BUCKET:-}
       - GCS_CREDENTIALS_PATH=${GCS_CREDENTIALS_PATH:-}
       - MAX_CONCURRENT_AGENTS=${MAX_CONCURRENT_AGENTS:-10}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
     volumes:
       - uploads_data:/app/uploads
       - outputs_data:/app/outputs
       - scripts_data:/app/scripts
+      - ./gcs-credentials.json:/app/credentials/gcs-credentials.json:ro
     networks:
       - honasa-network
     depends_on:
@@ -39,7 +42,7 @@ services:
     container_name: honasa-frontend
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "3000:80"
     networks:
       - honasa-network
     depends_on:
