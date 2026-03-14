@@ -1,264 +1,262 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { ArrowLeft, Users, CheckCircle2, Shield } from 'lucide-react';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react';
+import { Users, Shield, ShieldOff, Search, RefreshCw, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND = process.env.REACT_APP_BACKEND_URL || '';
 
-export default function ManageUsers() {
+export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedAccess, setSelectedAccess] = useState([]);
-  const [updatingRole, setUpdatingRole] = useState(false);
-  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [expandedUser, setExpandedUser] = useState(null);
+  const [saving, setSaving] = useState({});
 
   useEffect(() => {
-    loadData();
+    fetchAll();
   }, []);
 
-  const loadData = async () => {
+  async function fetchAll() {
+    setLoading(true);
     try {
-      const [usersRes, agentsRes] = await Promise.all([
-        axios.get(`${BACKEND_URL}/api/admin/users`, { withCredentials: true }),
-        axios.get(`${BACKEND_URL}/api/admin/agents`, { withCredentials: true })
+      const [uRes, aRes] = await Promise.all([
+        fetch(`${BACKEND}/api/admin/users`, { credentials: 'include' }),
+        fetch(`${BACKEND}/api/admin/agents`, { credentials: 'include' })
       ]);
-      setUsers(usersRes.data);
-      setAgents(agentsRes.data);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      if (error.response?.status === 403 || error.response?.status === 401) {
-        navigate('/');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditAccess = (user) => {
-    setSelectedUser(user);
-    setSelectedAccess(user.agent_access || []);
-  };
-
-  const toggleAgentAccess = (agentId) => {
-    if (selectedAccess.includes(agentId)) {
-      setSelectedAccess(selectedAccess.filter(id => id !== agentId));
-    } else {
-      setSelectedAccess([...selectedAccess, agentId]);
-    }
-  };
-
-  const saveAccess = async () => {
-    try {
-      await axios.put(
-        `${BACKEND_URL}/api/admin/users/${selectedUser.user_id}/access`,
-        selectedAccess,
-        { 
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-      
-      toast.success('User access updated successfully');
-      setSelectedUser(null);
-      loadData();
-    } catch (error) {
-      console.error('Failed to update access:', error);
-      toast.error('Failed to update user access');
-    }
-  };
-
-  const toggleRole = async (user) => {
-    if (updatingRole) return;
-    
-    const newRole = user.role === 'admin' ? 'user' : 'admin';
-    const confirmMsg = newRole === 'admin' 
-      ? `Make ${user.name} an admin?` 
-      : `Remove admin privileges from ${user.name}?`;
-    
-    if (!window.confirm(confirmMsg)) return;
-    
-    setUpdatingRole(true);
-    try {
-      await axios.put(
-        `${BACKEND_URL}/api/admin/users/${user.user_id}/role`,
-        { role: newRole },
-        { 
-          withCredentials: true,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-      
-      toast.success(`${user.name} is now ${newRole === 'admin' ? 'an admin' : 'a regular user'}`);
-      loadData();
-    } catch (error) {
-      console.error('Failed to update role:', error);
-      toast.error('Failed to update user role');
-    } finally {
-      setUpdatingRole(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="loading-spinner"></div>
-      </div>
-    );
+      if (uRes.ok) setUsers(await uRes.json());
+      if (aRes.ok) setAgents(await aRes.json());
+    } catch (e) { console.error(e); }
+    setLoading(false);
   }
+
+  async function updateRole(userId, newRole) {
+    setSaving(s => ({ ...s, [userId + '_role']: true }));
+    try {
+      const res = await fetch(`${BACKEND}/api/admin/users/${userId}/role`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) fetchAll();
+      else alert('Failed to update role');
+    } catch (e) { alert('Error updating role'); }
+    setSaving(s => ({ ...s, [userId + '_role']: false }));
+  }
+
+  async function updateAccess(userId, agentIds) {
+    setSaving(s => ({ ...s, [userId + '_access']: true }));
+    try {
+      const res = await fetch(`${BACKEND}/api/admin/users/${userId}/access`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agentIds)
+      });
+      if (res.ok) {
+        setUsers(prev => prev.map(u => u.user_id === userId ? { ...u, agent_access: agentIds } : u));
+      } else alert('Failed to update access');
+    } catch (e) { alert('Error updating access'); }
+    setSaving(s => ({ ...s, [userId + '_access']: false }));
+  }
+
+  function toggleAgentAccess(user, agentId) {
+    const current = user.agent_access || [];
+    const updated = current.includes(agentId)
+      ? current.filter(id => id !== agentId)
+      : [...current, agentId];
+    updateAccess(user.user_id, updated);
+  }
+
+  function grantAll(user) {
+    updateAccess(user.user_id, agents.map(a => a.agent_id));
+  }
+
+  function revokeAll(user) {
+    updateAccess(user.user_id, []);
+  }
+
+  const filtered = users.filter(u =>
+    u.name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const adminCount = users.filter(u => u.role === 'admin').length;
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <Link
-            to="/admin"
-            className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Admin
-          </Link>
-          <h1 className="text-3xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-            Manage Users
-          </h1>
-          <p className="text-slate-600 mt-2">
-            Control user access to automation agents
-          </p>
+      <header className="bg-white border-b border-slate-200 px-6 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+              User Management
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {users.length} user{users.length !== 1 ? 's' : ''} · {adminCount} admin{adminCount !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <button onClick={fetchAll} className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors">
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden fade-in">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="text-left p-4 text-sm font-medium text-slate-900">User</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-900">Email</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-900">Role</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-900">Agent Access</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-900">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.user_id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={user.picture || 'https://via.placeholder.com/40'}
-                          alt={user.name}
-                          className="w-8 h-8 rounded-full border border-slate-200"
-                        />
-                        <span className="text-sm font-medium text-slate-900">{user.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-slate-600">{user.email}</span>
-                    </td>
-                    <td className="p-4">
-                      {user.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                          <Shield className="w-3 h-3" />
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                          <Users className="w-3 h-3" />
-                          User
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-slate-600">
-                        {user.agent_access?.length || 0} agent{user.agent_access?.length !== 1 ? 's' : ''}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        {user.role !== 'admin' && (
-                          <button
-                            onClick={() => handleEditAccess(user)}
-                            data-testid="edit-access-btn"
-                            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            Edit Access
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleRole(user)}
-                          disabled={updatingRole}
-                          className="text-sm text-slate-600 hover:text-slate-900 font-medium"
-                        >
-                          {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        {/* Search */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
-      </main>
 
-      {/* Access Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl fade-in">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-xl font-semibold text-slate-900" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                Edit Agent Access
-              </h3>
-              <p className="text-sm text-slate-600 mt-1">
-                {selectedUser.name} ({selectedUser.email})
-              </p>
-            </div>
-            
-            <div className="p-6 overflow-y-auto max-h-[50vh]">
-              <div className="space-y-3">
-                {agents.map((agent) => (
-                  <label
-                    key={agent.agent_id}
-                    className="flex items-start gap-3 p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedAccess.includes(agent.agent_id)}
-                      onChange={() => toggleAgentAccess(agent.agent_id)}
-                      className="mt-1 w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-slate-900">{agent.name}</div>
-                      <div className="text-sm text-slate-600 mt-1">{agent.description}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-            
-            <div className="p-6 border-t border-slate-200 flex items-center justify-end gap-3">
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="py-2 px-4 border border-slate-200 text-slate-700 rounded-md hover:bg-slate-50 transition-all font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveAccess}
-                data-testid="save-access-btn"
-                className="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all font-medium shadow-sm"
-              >
-                Save Changes
-              </button>
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        </div>
-      )}
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20 text-slate-400">
+            <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
+            <p>No users found</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map(user => {
+              const isExpanded = expandedUser === user.user_id;
+              const accessCount = (user.agent_access || []).length;
+              const isAdmin = user.role === 'admin';
+
+              return (
+                <div key={user.user_id} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  {/* User row */}
+                  <div className="flex items-center gap-4 p-4">
+                    {/* Avatar */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${
+                      isAdmin ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {(user.name || user.email || '?')[0].toUpperCase()}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-900 truncate">{user.name || 'Unknown'}</span>
+                        {isAdmin && (
+                          <span className="flex-shrink-0 px-1.5 py-0.5 bg-blue-50 text-blue-700 text-xs rounded font-medium">Admin</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-400 truncate">{user.email}</p>
+                    </div>
+
+                    {/* Access count (non-admins) */}
+                    {!isAdmin && (
+                      <span className="text-sm text-slate-500 flex-shrink-0">
+                        {accessCount}/{agents.length} agents
+                      </span>
+                    )}
+
+                    {/* Role toggle */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isAdmin ? (
+                        <button
+                          onClick={() => updateRole(user.user_id, 'user')}
+                          disabled={saving[user.user_id + '_role']}
+                          className="flex items-center gap-1.5 py-1.5 px-3 border border-orange-200 text-orange-600 rounded-md hover:bg-orange-50 text-xs font-medium disabled:opacity-50 transition-colors"
+                        >
+                          <ShieldOff className="w-3.5 h-3.5" />
+                          {saving[user.user_id + '_role'] ? 'Saving...' : 'Demote'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => updateRole(user.user_id, 'admin')}
+                          disabled={saving[user.user_id + '_role']}
+                          className="flex items-center gap-1.5 py-1.5 px-3 border border-blue-200 text-blue-600 rounded-md hover:bg-blue-50 text-xs font-medium disabled:opacity-50 transition-colors"
+                        >
+                          <Shield className="w-3.5 h-3.5" />
+                          {saving[user.user_id + '_role'] ? 'Saving...' : 'Make Admin'}
+                        </button>
+                      )}
+
+                      {/* Expand for access management (non-admins) */}
+                      {!isAdmin && agents.length > 0 && (
+                        <button
+                          onClick={() => setExpandedUser(isExpanded ? null : user.user_id)}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Agent access panel */}
+                  {!isAdmin && isExpanded && (
+                    <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agent Access</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => grantAll(user)}
+                            disabled={saving[user.user_id + '_access']}
+                            className="text-xs text-blue-600 hover:underline disabled:opacity-50"
+                          >
+                            Grant All
+                          </button>
+                          <span className="text-slate-300">·</span>
+                          <button
+                            onClick={() => revokeAll(user)}
+                            disabled={saving[user.user_id + '_access']}
+                            className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                          >
+                            Revoke All
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {agents.map(agent => {
+                          const hasAccess = (user.agent_access || []).includes(agent.agent_id);
+                          return (
+                            <button
+                              key={agent.agent_id}
+                              onClick={() => toggleAgentAccess(user, agent.agent_id)}
+                              disabled={saving[user.user_id + '_access']}
+                              className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-left transition-all disabled:opacity-50 ${
+                                hasAccess
+                                  ? 'bg-blue-50 border-blue-200 text-blue-800'
+                                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              {hasAccess
+                                ? <CheckSquare className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                : <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                              }
+                              <span className="text-sm font-medium truncate">{agent.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {saving[user.user_id + '_access'] && (
+                        <p className="text-xs text-slate-400 mt-2">Saving...</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Admin note */}
+                  {isAdmin && isExpanded && (
+                    <div className="border-t border-slate-100 px-4 py-3">
+                      <p className="text-sm text-slate-400">Admins have access to all agents automatically.</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
     </div>
   );
 }

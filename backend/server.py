@@ -29,10 +29,8 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Resend API setup
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
-if RESEND_API_KEY:
-    resend.api_key = RESEND_API_KEY
+SMTP_EMAIL = os.environ.get('SMTP_EMAIL', '')
+SMTP_APP_PASSWORD = os.environ.get('SMTP_APP_PASSWORD', '')
 
 # Google OAuth
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
@@ -204,13 +202,18 @@ async def google_login(request: GoogleAuthRequest, response: Response):
             )
         else:
             user_id = f"user_{uuid.uuid4().hex[:12]}"
+            is_admin = email in admin_emails
+            if is_admin:
+                all_agent_ids = [a["agent_id"] for a in await db.agents.find({}, {"_id": 0, "agent_id": 1}).to_list(1000)]
+            else:
+                all_agent_ids = []
             await db.users.insert_one({
                 "user_id": user_id,
                 "email": email,
                 "name": name,
                 "picture": picture,
-                "role": "admin" if email in admin_emails else "user",
-                "agent_access": [],
+                "role": "admin" if is_admin else "user",
+                "agent_access": all_agent_ids,
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
 
@@ -287,6 +290,10 @@ async def update_user_access(
     session_token: Optional[str] = Cookie(None)
 ):
     await require_admin(session_token=session_token)
+    # Admins always get all agents regardless of what was submitted
+    target_user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "role": 1})
+    if target_user and target_user.get("role") == "admin":
+        agent_ids = [a["agent_id"] for a in await db.agents.find({}, {"_id": 0, "agent_id": 1}).to_list(1000)]
     result = await db.users.update_one(
         {"user_id": user_id},
         {"$set": {"agent_access": agent_ids}}
@@ -304,9 +311,17 @@ async def update_user_role(
     await require_admin(session_token=session_token)
     if request.role not in ["admin", "user"]:
         raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
+    update_fields = {"role": request.role}
+    if request.role == "admin":
+        # Promote to admin: grant access to all agents
+        all_agent_ids = [a["agent_id"] for a in await db.agents.find({}, {"_id": 0, "agent_id": 1}).to_list(1000)]
+        update_fields["agent_access"] = all_agent_ids
+    else:
+        # Demote to user: clear agent access
+        update_fields["agent_access"] = []
     result = await db.users.update_one(
         {"user_id": user_id},
-        {"$set": {"role": request.role}}
+        {"$set": update_fields}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -355,6 +370,11 @@ async def create_agent(
         "created_by": user.user_id
     }
     await db.agents.insert_one(agent_doc)
+    # Automatically grant all admins access to the new agent
+    await db.users.update_many(
+        {"role": "admin"},
+        {"$addToSet": {"agent_access": agent_id}}
+    )
     return {"message": "Agent created successfully", "agent_id": agent_id}
 
 @api_router.get("/admin/agents")
@@ -373,6 +393,46 @@ async def delete_agent(agent_id: str, session_token: Optional[str] = Cookie(None
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Agent not found")
     return {"message": "Agent deleted successfully"}
+
+@api_router.put("/admin/agents/{agent_id}")
+async def update_agent(
+    agent_id: str,
+    name: str = Form(...),
+    description: str = Form(...),
+    required_files: str = Form(...),
+    validation_file: Optional[UploadFile] = File(None),
+    main_file: Optional[UploadFile] = File(None),
+    session_token: Optional[str] = Cookie(None)
+):
+    await require_admin(session_token=session_token)
+    agent = await db.agents.find_one({"agent_id": agent_id}, {"_id": 0})
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    scripts_dir = ROOT_DIR / "scripts" / agent_id
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+
+    update_fields = {
+        "name": name,
+        "description": description,
+        "required_files": [f.strip() for f in required_files.split(",") if f.strip()],
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    if validation_file:
+        validation_path = scripts_dir / "validate.py"
+        with open(validation_path, "wb") as f:
+            shutil.copyfileobj(validation_file.file, f)
+        update_fields["validation_script"] = str(validation_path)
+
+    if main_file:
+        main_path = scripts_dir / "main.py"
+        with open(main_path, "wb") as f:
+            shutil.copyfileobj(main_file.file, f)
+        update_fields["main_script"] = str(main_path)
+
+    await db.agents.update_one({"agent_id": agent_id}, {"$set": update_fields})
+    return {"message": "Agent updated successfully", "agent_id": agent_id}
 
 @api_router.put("/admin/agents/{agent_id}/iframe-url")
 async def update_agent_iframe_url(
@@ -430,31 +490,31 @@ async def upload_files(
         raise HTTPException(status_code=404, detail="Agent not found")
 
     job_id = f"job_{uuid.uuid4().hex[:12]}"
-    job_dir = UPLOADS_DIR / job_id
-    job_dir.mkdir(exist_ok=True)
 
     uploaded_files = []
     file_metadata = []
 
     for file in files:
-        file_path = job_dir / file.filename
         file_content = await file.read()
-        with open(file_path, "wb") as buffer:
-            buffer.write(file_content)
+        gcs_path = f"uploads/{job_id}/{file.filename}"
+
+        # Upload to GCS
+        blob = gcs_bucket.blob(gcs_path)
+        blob.upload_from_string(file_content, content_type=file.content_type or "application/octet-stream")
 
         file_doc = {
             "file_id": f"file_{uuid.uuid4().hex[:8]}",
             "job_id": job_id,
             "user_id": user.user_id,
             "file_name": file.filename,
-            "file_path": str(file_path),
+            "gcs_path": gcs_path,
             "file_type": file.content_type or "application/octet-stream",
-            "storage_type": "local",
+            "storage_type": "gcs",
             "uploaded_at": datetime.now(timezone.utc).isoformat()
         }
         await db.files.insert_one(file_doc)
         uploaded_files.append(file.filename)
-        file_metadata.append({"filename": file.filename, "local_path": str(file_path)})
+        file_metadata.append({"filename": file.filename, "gcs_path": gcs_path})
 
     job_doc = {
         "job_id": job_id,
@@ -506,37 +566,24 @@ async def execute_agent(
         {"$set": {"status": "processing", "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
 
-    background_tasks.add_task(run_job_background, job_id, agent_id, job, agent)
+    # Pass user email through for notifications
+    background_tasks.add_task(run_job_background, job_id, agent_id, job, agent, user.email)
     return {"job_id": job_id, "status": "processing", "message": "Job started"}
 
-async def run_job_background(job_id: str, agent_id: str, job: dict, agent: dict):
+async def run_job_background(job_id: str, agent_id: str, job: dict, agent: dict, user_email: str = ""):
     global active_jobs_count
     try:
-        output_dir = OUTPUTS_DIR / job_id
-        output_dir.mkdir(exist_ok=True)
-
-        result = await execute_agent_script(
-            agent_id=agent_id,
+        await execute_agent_script(
             job_id=job_id,
-            file_metadata=job.get("file_metadata", []),
-            output_dir=str(output_dir),
-            validation_script=agent.get("validation_script"),
-            main_script=agent.get("main_script")
-        )
-
-        output_files = []
-        if output_dir.exists():
-            output_files = [f.name for f in output_dir.iterdir() if f.is_file()]
-
-        await db.jobs.update_one(
-            {"job_id": job_id},
-            {"$set": {
-                "status": "completed" if result.get("success") else "failed",
-                "output_files": output_files,
-                "execution_output": result.get("output", ""),
-                "error_message": result.get("error"),
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }}
+            agent_id=agent_id,
+            user_email=user_email,
+            db=db,
+            agent=agent,
+            ROOT_DIR=ROOT_DIR,
+            OUTPUTS_DIR=OUTPUTS_DIR,
+            SMTP_EMAIL=SMTP_EMAIL,
+            SMTP_APP_PASSWORD=SMTP_APP_PASSWORD,
+            gcs_bucket=None
         )
     except Exception as e:
         logger.error(f"Job {job_id} failed: {str(e)}")

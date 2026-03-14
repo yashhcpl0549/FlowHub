@@ -450,6 +450,34 @@ def _map_sheets(dirpath):
         m[sh.attrib["name"]] = rid_map[rid]
     return m
 
+def _extract_sheetdata_text(xml_path):
+    """Extract <sheetData>...</sheetData> as raw string + dimension ref.
+    Reads file as text — never builds an XML element tree for large files."""
+    import re
+    with open(xml_path, "r", encoding="utf-8", errors="replace") as f:
+        raw = f.read()
+    dim_ref = None
+    dim_m = re.search(r'<dimension[^>]*ref="([^"]+)"', raw)
+    if dim_m:
+        dim_ref = dim_m.group(1)
+    sd_m = re.search(r'(<sheetData(?:[^>]*)>.*?</sheetData>)', raw, re.DOTALL)
+    if not sd_m:
+        sd_m = re.search(r'(<sheetData/>)', raw)
+    return (sd_m.group(1) if sd_m else "<sheetData/>"), dim_ref
+
+def _inject_sheetdata_text(tmpl_xml_path, sheetdata_text, dim_ref):
+    """Replace sheetData block in template XML using string ops.
+    Template has no data rows so it is small and safe to load fully."""
+    import re
+    with open(tmpl_xml_path, "r", encoding="utf-8", errors="replace") as f:
+        tmpl = f.read()
+    if dim_ref:
+        tmpl = re.sub(r'<dimension[^>]*ref="[^"]*"', f'<dimension ref="{dim_ref}"', tmpl)
+    tmpl = re.sub(r'<sheetData(?:[^>]*)>.*?</sheetData>', sheetdata_text, tmpl, flags=re.DOTALL)
+    tmpl = re.sub(r'<sheetData/>', sheetdata_text, tmpl)
+    with open(tmpl_xml_path, "w", encoding="utf-8") as f:
+        f.write(tmpl)
+
 def write_to_template(raw_sheets, template_path, output_path):
     log.info("Injecting data into Excel template...")
     ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -469,19 +497,9 @@ def write_to_template(raw_sheets, template_path, output_path):
             tmpl_xml = Path(tpl_dir)/tpl_map[sname]
             raw_rel  = raw_map[sname].lstrip("/")
             if not raw_rel.startswith("xl/"): raw_rel = "xl/"+raw_rel
-            t_tree = ET.parse(str(tmpl_xml)); t_root = t_tree.getroot()
-            r_root = ET.parse(str(Path(raw_dir)/raw_rel)).getroot()
-            t_sd   = t_root.find(f".//{{{ns}}}sheetData")
-            r_sd   = r_root.find(f".//{{{ns}}}sheetData")
-            if t_sd is None: t_sd = ET.SubElement(t_root, f"{{{ns}}}sheetData")
-            for c in list(t_sd): t_sd.remove(c)
-            for c in list(r_sd): t_sd.append(c)
-            t_dim = t_root.find(f".//{{{ns}}}dimension")
-            r_dim = r_root.find(f".//{{{ns}}}dimension")
-            if r_dim is not None:
-                if t_dim is None: t_root.insert(0, r_dim)
-                else: t_dim.attrib["ref"] = r_dim.attrib["ref"]
-            t_tree.write(str(tmpl_xml), encoding="utf-8", xml_declaration=True)
+            raw_xml  = Path(raw_dir)/raw_rel
+            sheetdata_text, dim_ref = _extract_sheetdata_text(str(raw_xml))
+            _inject_sheetdata_text(str(tmpl_xml), sheetdata_text, dim_ref)
             log.info(f"  ✔ Updated: {sname}")
         tmp = tempfile.mktemp(prefix="final_", suffix=".xlsx")
         with zipfile.ZipFile(tmp,"w",compression=zipfile.ZIP_DEFLATED) as z:
